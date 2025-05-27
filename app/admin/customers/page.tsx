@@ -15,22 +15,46 @@ import { CustomerDetailsDialog } from "@/components/admin/customer-details-dialo
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { fetchCustomers } from '../store/slices/customerSlice'
+import { fetchCustomers, fetchCustomerById } from '../store/slices/customerSlice'
 import { store } from '../../redux/store'
 
 // Define the data type based on API response
+interface AccessControl {
+  id: number;
+  name: string;
+  // Add other access control fields if needed
+}
+
+interface Role {
+  name: string;
+  pivot: {
+    model_type: string;
+    model_id: number;
+    role_id: number;
+  };
+}
+
 type Customer = {
   id: number;
   name: string;
   email: string;
+  email_verified_at: string | null;
   phone_number: string;
   active: number;
   created_at: string;
+  updated_at: string;
   last_login_at: string | null;
+  last_active_at: string | null;
+  roles: Role[];
+  access_control: AccessControl[];
   setting: {
-    ip: string;
+    id: number;
+    user_id: number;
     genesis_session_key: string;
+    ip: string;
     url: string;
+    created_at: string;
+    updated_at: string;
   };
 }
 
@@ -54,6 +78,16 @@ interface EditCustomerDialogProps {
   customer: Customer;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSubmit: (values: {
+    name: string;
+    email: string;
+    phoneNumber: string;
+    ipAddress?: string;
+    genesisSessionKey: string;
+    url: string;
+    isActive: boolean;
+    notes?: string;
+  }) => void;
 }
 
 interface CustomerDetailsDialogProps {
@@ -71,12 +105,12 @@ interface DeleteCustomerDialogProps {
 
 export default function CustomersPage() {
   const dispatch = store.dispatch;
-  const { customers, loading, error, pagination } = useSelector((state: any) => state.customers);
+  const { customers, loading, error, pagination, selectedCustomer } = useSelector((state: any) => state.customers);
   const [activeTab, setActiveTab] = useState("all")
 
   // Dialog states
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false)
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -85,7 +119,7 @@ export default function CustomersPage() {
 
   useEffect(() => {
     if (token) {
-      dispatch(fetchCustomers());
+      dispatch(fetchCustomers(1));
     }
   }, [dispatch, token]);
 
@@ -171,9 +205,13 @@ export default function CustomersPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => {
-                setSelectedCustomer(customer)
-                setIsDetailsOpen(true)
+              onClick={async () => {
+                try {
+                  await dispatch(fetchCustomerById(customer.id));
+                  setIsDetailsOpen(true);
+                } catch (error) {
+                  console.error("Error fetching customer details:", error);
+                }
               }}
             >
               <Eye className="h-4 w-4" />
@@ -182,8 +220,8 @@ export default function CustomersPage() {
               variant="ghost"
               size="icon"
               onClick={() => {
-                setSelectedCustomer(customer)
-                setIsEditOpen(true)
+                setSelectedCustomerId(customer.id);
+                setIsEditOpen(true);
               }}
             >
               <Edit className="h-4 w-4" />
@@ -192,8 +230,8 @@ export default function CustomersPage() {
               variant="ghost"
               size="icon"
               onClick={() => {
-                setSelectedCustomer(customer)
-                setIsDeleteOpen(true)
+                setSelectedCustomerId(customer.id);
+                setIsDeleteOpen(true);
               }}
             >
               <Trash2 className="h-4 w-4" />
@@ -255,6 +293,10 @@ export default function CustomersPage() {
             customer={selectedCustomer}
             open={isEditOpen}
             onOpenChange={setIsEditOpen}
+            onSubmit={(values) => {
+              // TODO: Implement edit functionality
+              setIsEditOpen(false);
+            }}
           />
           <DeleteCustomerDialog
             customerName={selectedCustomer.name}

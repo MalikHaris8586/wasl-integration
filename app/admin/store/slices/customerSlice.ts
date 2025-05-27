@@ -43,6 +43,7 @@ interface CustomerCount {
 
 interface CustomerState {
   customers: Customer[];
+  selectedCustomer: Customer | null;
   counts: CustomerCount[];
   loading: boolean;
   error: string | null;
@@ -59,6 +60,7 @@ interface CustomerState {
 
 const initialState: CustomerState = {
   customers: [],
+  selectedCustomer: null,
   counts: [],
   loading: false,
   error: null,
@@ -102,6 +104,36 @@ export const fetchCustomers = createAsyncThunk(
   }
 );
 
+export const fetchCustomerById = createAsyncThunk(
+  "customers/fetchCustomerById",
+  async (userId: number, { getState }) => {
+    try {
+      const state = getState() as { auth: { token: string } };
+      const token = state.auth.token;
+      console.log("Fetching customer with token:", token);
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await axios.get(
+        `https://wasl-api.tracking.me/api/admin/user/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+      console.log("Single Customer API Response:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("API Error:", error);
+      throw error;
+    }
+  }
+);
+
 const customerSlice = createSlice({
   name: "customers",
   initialState,
@@ -132,6 +164,18 @@ const customerSlice = createSlice({
       .addCase(fetchCustomers.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to fetch customers";
+      })
+      .addCase(fetchCustomerById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchCustomerById.fulfilled, (state, action) => {
+        state.loading = false;
+        state.selectedCustomer = action.payload.data;
+      })
+      .addCase(fetchCustomerById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to fetch customer details";
       });
   },
 });
