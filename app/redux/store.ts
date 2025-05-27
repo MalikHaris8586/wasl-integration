@@ -9,6 +9,7 @@ import companiesReducer from "../redux/auth/companiesSlice"
 import driverReducer from "../redux/auth/driverSlice"
 import vehicleReducer from "../redux/auth/vehicleSlice"
 import billingReducer from '../redux/auth/billingSlice'
+import customerReducer from '../admin/store/slices/customerSlice'
 
 // 👉 Config for persisting only auth slice
 const persistConfig = {
@@ -25,6 +26,7 @@ const rootReducer = combineReducers({
   driver: driverReducer,
   vehicle: vehicleReducer,
   billing: billingReducer,
+  customers: customerReducer,
 })
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)

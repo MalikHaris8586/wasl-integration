@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Edit, Eye, Plus, Trash2 } from "lucide-react"
+import { useSelector } from 'react-redux'
 
 import { DataTable } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
@@ -14,138 +15,63 @@ import { CustomerDetailsDialog } from "@/components/admin/customer-details-dialo
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { fetchCustomers } from '../store/slices/customerSlice'
+import { store } from '../../redux/store'
 
-// Define the data type
+// Define the data type based on API response
 type Customer = {
-  id: string
-  name: string
-  email: string
-  phoneNumber: string
-  ipAddress: string
-  genesisSessionKey: string
-  url: string
-  isActive: boolean
-  createdAt: string
-  lastLogin: string
-  usageStats: {
-    companiesUsed: number
-    companiesLimit: number
-    driversUsed: number
-    driversLimit: number
-    vehiclesUsed: number
-    vehiclesLimit: number
-  }
-  notes?: string
+  id: number;
+  name: string;
+  email: string;
+  phone_number: string;
+  active: number;
+  created_at: string;
+  last_login_at: string | null;
+  setting: {
+    ip: string;
+    genesis_session_key: string;
+    url: string;
+  };
 }
 
-// Sample data
-const customers: Customer[] = [
-  {
-    id: "1",
-    name: "Acme Corporation",
-    email: "admin@acme.com",
-    phoneNumber: "+966 123456789",
-    ipAddress: "192.168.1.1",
-    genesisSessionKey: "genesis_session_key_1",
-    url: "https://acme.example.com",
-    isActive: true,
-    createdAt: "2023-01-15T10:30:00Z",
-    lastLogin: "2023-04-20T08:45:00Z",
-    usageStats: {
-      companiesUsed: 32,
-      companiesLimit: 50,
-      driversUsed: 145,
-      driversLimit: 200,
-      vehiclesUsed: 98,
-      vehiclesLimit: 150,
-    },
-    notes: "Premium customer with priority support",
-  },
-  {
-    id: "2",
-    name: "XYZ Industries",
-    email: "admin@xyz.com",
-    phoneNumber: "+966 987654321",
-    ipAddress: "192.168.1.2",
-    genesisSessionKey: "genesis_session_key_2",
-    url: "https://xyz.example.com",
-    isActive: true,
-    createdAt: "2023-02-10T14:20:00Z",
-    lastLogin: "2023-04-19T16:30:00Z",
-    usageStats: {
-      companiesUsed: 15,
-      companiesLimit: 30,
-      driversUsed: 45,
-      driversLimit: 100,
-      vehiclesUsed: 30,
-      vehiclesLimit: 80,
-    },
-  },
-  {
-    id: "3",
-    name: "Global Logistics",
-    email: "admin@globallogistics.com",
-    phoneNumber: "+966 555555555",
-    ipAddress: "192.168.1.3",
-    genesisSessionKey: "genesis_session_key_3",
-    url: "https://globallogistics.example.com",
-    isActive: false,
-    createdAt: "2023-03-05T09:15:00Z",
-    lastLogin: "2023-04-15T11:20:00Z",
-    usageStats: {
-      companiesUsed: 5,
-      companiesLimit: 20,
-      driversUsed: 20,
-      driversLimit: 80,
-      vehiclesUsed: 15,
-      vehiclesLimit: 60,
-    },
-    notes: "Account temporarily disabled due to payment issues",
-  },
-  {
-    id: "4",
-    name: "Saudi Transport",
-    email: "admin@sauditransport.com",
-    phoneNumber: "+966 111222333",
-    ipAddress: "192.168.1.4",
-    genesisSessionKey: "genesis_session_key_4",
-    url: "https://sauditransport.example.com",
-    isActive: true,
-    createdAt: "2023-03-20T13:40:00Z",
-    lastLogin: "2023-04-21T09:10:00Z",
-    usageStats: {
-      companiesUsed: 25,
-      companiesLimit: 40,
-      driversUsed: 80,
-      driversLimit: 120,
-      vehiclesUsed: 60,
-      vehiclesLimit: 100,
-    },
-  },
-  {
-    id: "5",
-    name: "Riyadh Movers",
-    email: "admin@riyadhmovers.com",
-    phoneNumber: "+966 444555666",
-    ipAddress: "192.168.1.5",
-    genesisSessionKey: "genesis_session_key_5",
-    url: "https://riyadhmovers.example.com",
-    isActive: true,
-    createdAt: "2023-04-01T10:00:00Z",
-    lastLogin: "2023-04-22T10:30:00Z",
-    usageStats: {
-      companiesUsed: 10,
-      companiesLimit: 25,
-      driversUsed: 35,
-      driversLimit: 75,
-      vehiclesUsed: 20,
-      vehiclesLimit: 50,
-    },
-  },
-]
+// Define dialog props types
+interface AddCustomerDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (values: {
+    name: string;
+    email: string;
+    phoneNumber: string;
+    ipAddress?: string;
+    genesisSessionKey: string;
+    url: string;
+    isActive: boolean;
+    notes?: string;
+  }) => void;
+}
+
+interface EditCustomerDialogProps {
+  customer: Customer;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+interface CustomerDetailsDialogProps {
+  customer: Customer;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+interface DeleteCustomerDialogProps {
+  customerName: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}
 
 export default function CustomersPage() {
-  const [data, setData] = useState<Customer[]>(customers)
+  const dispatch = store.dispatch;
+  const { customers, loading, error, pagination } = useSelector((state: any) => state.customers);
   const [activeTab, setActiveTab] = useState("all")
 
   // Dialog states
@@ -155,12 +81,39 @@ export default function CustomersPage() {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
+  const token = useSelector((state:any) => state.auth.token);
+
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchCustomers());
+    }
+  }, [dispatch, token]);
+
   // Filter customers based on active tab
-  const filteredCustomers = data.filter((customer) => {
-    if (activeTab === "active") return customer.isActive
-    if (activeTab === "inactive") return !customer.isActive
-    return true
-  })
+  const filteredCustomers = customers?.filter((customer: Customer) => {
+    if (activeTab === "active") return customer.active === 1;
+    if (activeTab === "inactive") return customer.active === 0;
+    return true;
+  }) || [];
+
+  const handleDeleteCustomer = () => {
+    // Implement delete functionality
+    setIsDeleteOpen(false);
+  };
+
+  const handleAddCustomer = (values: {
+    name: string;
+    email: string;
+    phoneNumber: string;
+    ipAddress?: string;
+    genesisSessionKey: string;
+    url: string;
+    isActive: boolean;
+    notes?: string;
+  }) => {
+    // TODO: Implement add customer functionality
+    setIsAddCustomerOpen(false);
+  };
 
   // Define columns for the data table
   const columns: ColumnDef<Customer>[] = [
@@ -178,18 +131,18 @@ export default function CustomersPage() {
       },
     },
     {
-      accessorKey: "phoneNumber",
+      accessorKey: "phone_number",
       header: "Phone Number",
     },
     {
-      accessorKey: "ipAddress",
+      accessorKey: "setting.ip",
       header: "IP Address",
     },
     {
-      accessorKey: "url",
+      accessorKey: "setting.url",
       header: "URL",
       cell: ({ row }) => {
-        const url = row.getValue("url") as string
+        const url = row.original.setting.url
         return (
           <div className="max-w-[200px] truncate" title={url}>
             {url}
@@ -198,43 +151,26 @@ export default function CustomersPage() {
       },
     },
     {
-      accessorKey: "isActive",
+      accessorKey: "active",
       header: "Status",
       cell: ({ row }) => {
-        const customer = row.original
+        const isActive = row.original.active === 1
         return (
-          <div className="flex items-center">
-            <Switch
-              checked={customer.isActive}
-              onCheckedChange={(checked) => {
-                setData((prev) => prev.map((c) => (c.id === customer.id ? { ...c, isActive: checked } : c)))
-              }}
-            />
-            <span className="ml-2">
-              {customer.isActive ? (
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                  Active
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                  Inactive
-                </Badge>
-              )}
-            </span>
-          </div>
+          <Badge variant={isActive ? "default" : "destructive"}>
+            {isActive ? "Active" : "Inactive"}
+          </Badge>
         )
       },
     },
     {
       id: "actions",
-      header: "Actions",
       cell: ({ row }) => {
         const customer = row.original
         return (
-          <div className="flex space-x-2">
+          <div className="flex items-center gap-2">
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghost"
+              size="icon"
               onClick={() => {
                 setSelectedCustomer(customer)
                 setIsDetailsOpen(true)
@@ -243,8 +179,8 @@ export default function CustomersPage() {
               <Eye className="h-4 w-4" />
             </Button>
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghost"
+              size="icon"
               onClick={() => {
                 setSelectedCustomer(customer)
                 setIsEditOpen(true)
@@ -253,8 +189,8 @@ export default function CustomersPage() {
               <Edit className="h-4 w-4" />
             </Button>
             <Button
-              variant="destructive"
-              size="sm"
+              variant="ghost"
+              size="icon"
               onClick={() => {
                 setSelectedCustomer(customer)
                 setIsDeleteOpen(true)
@@ -268,138 +204,58 @@ export default function CustomersPage() {
     },
   ]
 
-  const handleAddCustomer = (customer: Omit<Customer, "id" | "createdAt" | "lastLogin" | "usageStats">) => {
-    const newCustomer = {
-      ...customer,
-      id: Math.random().toString(36).substring(7),
-      createdAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-      usageStats: {
-        companiesUsed: 0,
-        companiesLimit: 0,
-        driversUsed: 0,
-        driversLimit: 0,
-        vehiclesUsed: 0,
-        vehiclesLimit: 0,
-      },
-    }
-    setData((prev) => [...prev, newCustomer])
-    setIsAddCustomerOpen(false)
-  }
-
-  const handleEditCustomer = (updatedCustomer: any) => {
-    setData((prev) =>
-      prev.map((customer) => (customer.id === updatedCustomer.id ? { ...customer, ...updatedCustomer } : customer)),
-    )
-    setIsEditOpen(false)
-  }
-
-  const handleDeleteCustomer = () => {
-    if (selectedCustomer) {
-      setData((prev) => prev.filter((c) => c.id !== selectedCustomer.id))
-    }
-  }
-
-  // Calculate statistics
-  const totalCustomers = data.length
-  const activeCustomers = data.filter((c) => c.isActive).length
-  const inactiveCustomers = data.filter((c) => !c.isActive).length
-  const recentlyActiveCustomers = data.filter((c) => {
-    const lastLogin = new Date(c.lastLogin)
-    const now = new Date()
-    const diffTime = Math.abs(now.getTime() - lastLogin.getTime())
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays <= 7
-  }).length
-
   return (
-    <div className="space-y-4">
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Customer Management</h1>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Customers</h2>
+          <p className="text-muted-foreground">
+            Manage your customer accounts and their settings
+          </p>
+        </div>
         <Button onClick={() => setIsAddCustomerOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add Customer
+          <Plus className="mr-2 h-4 w-4" />
+          Add Customer
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCustomers}</div>
-            <p className="text-xs text-muted-foreground">All registered customers</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{activeCustomers}</div>
-            <p className="text-xs text-muted-foreground">
-              {((activeCustomers / totalCustomers) * 100).toFixed(0)}% of total customers
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inactive Customers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{inactiveCustomers}</div>
-            <p className="text-xs text-muted-foreground">
-              {((inactiveCustomers / totalCustomers) * 100).toFixed(0)}% of total customers
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recently Active</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{recentlyActiveCustomers}</div>
-            <p className="text-xs text-muted-foreground">Active in the last 7 days</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Customers</CardTitle>
-          <CardDescription>Manage your customer accounts and their integration settings</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="mb-4">
+      <div className="space-y-4">
+        <div className="flex justify-between">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
               <TabsTrigger value="all">All Customers</TabsTrigger>
               <TabsTrigger value="active">Active</TabsTrigger>
               <TabsTrigger value="inactive">Inactive</TabsTrigger>
             </TabsList>
           </Tabs>
+        </div>
 
-          <DataTable
-            columns={columns}
-            data={filteredCustomers}
-            searchKey="name"
-            searchPlaceholder="Search by customer name or email..."
-          />
-        </CardContent>
-      </Card>
+        {loading ? (
+          <div>Loading...</div>
+        ) : error ? (
+          <div>Error: {error}</div>
+        ) : (
+          <DataTable columns={columns} data={filteredCustomers} />
+        )}
+      </div>
 
-      <AddCustomerDialog open={isAddCustomerOpen} onOpenChange={setIsAddCustomerOpen} onSubmit={handleAddCustomer} />
-
+      <AddCustomerDialog
+        open={isAddCustomerOpen}
+        onOpenChange={setIsAddCustomerOpen}
+        onSubmit={handleAddCustomer}
+      />
       {selectedCustomer && (
         <>
-          <CustomerDetailsDialog customer={selectedCustomer} open={isDetailsOpen} onOpenChange={setIsDetailsOpen} />
-
+          <CustomerDetailsDialog
+            customer={selectedCustomer}
+            open={isDetailsOpen}
+            onOpenChange={setIsDetailsOpen}
+          />
           <EditCustomerDialog
             customer={selectedCustomer}
             open={isEditOpen}
             onOpenChange={setIsEditOpen}
-            onSubmit={handleEditCustomer}
           />
-
           <DeleteCustomerDialog
             customerName={selectedCustomer.name}
             open={isDeleteOpen}
