@@ -1,3 +1,5 @@
+"use client"
+
 import type React from "react"
 import { Bell, ChevronDown, Search, User } from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
@@ -13,12 +15,15 @@ import {
 import { Input } from "@/components/ui/input"
 import { Suspense } from "react"
 import { Providers } from "./providers"
+import { useSelector } from "react-redux"
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const user = useSelector((state: any) => state.auth.user)
+
   return (
     <Providers>
       <div className="flex min-h-screen">
@@ -47,7 +52,7 @@ export default function AdminLayout({
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                       <User className="h-4 w-4" />
                     </div>
-                    <div className="hidden md:block text-sm font-medium">Admin User</div>
+                    <div className="hidden md:block text-sm font-medium">{user?.name || 'User'}</div>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>

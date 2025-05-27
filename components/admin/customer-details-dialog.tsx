@@ -23,7 +23,7 @@ import {
   Key
 } from "lucide-react"
 
-interface Role {
+interface CustomerRole {
   name: string;
   pivot: {
     model_type: string;
@@ -32,12 +32,17 @@ interface Role {
   };
 }
 
-interface AccessControl {
-  id: number;
-  name: string;
+interface CustomerSetting {
+  id?: number;
+  user_id?: number;
+  genesis_session_key?: string;
+  ip?: string;
+  url?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
-type Customer = {
+interface Customer {
   id: number;
   name: string;
   email: string;
@@ -48,17 +53,8 @@ type Customer = {
   updated_at: string;
   last_login_at: string | null;
   last_active_at: string | null;
-  roles: Role[];
-  access_control: AccessControl[];
-  setting: {
-    id: number;
-    user_id: number;
-    genesis_session_key: string;
-    ip: string;
-    url: string;
-    created_at: string;
-    updated_at: string;
-  };
+  roles?: CustomerRole[];
+  setting?: CustomerSetting;
 }
 
 interface CustomerDetailsDialogProps {
@@ -151,27 +147,14 @@ export function CustomerDetailsDialog({ customer, open, onOpenChange }: Customer
                 <CardDescription>User roles and permissions</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {customer.roles.map((role, index) => (
+                {customer.roles?.map((role, index) => (
                   <div key={index} className="flex items-center">
                     <Shield className="h-4 w-4 mr-2 text-muted-foreground" />
                     <span className="text-sm">{role.name}</span>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Access Control</CardTitle>
-                <CardDescription>Access control settings</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {customer.access_control.map((access, index) => (
-                  <div key={index} className="flex items-center">
-                    <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span className="text-sm">{access.name}</span>
-                  </div>
-                ))}
+                )) || (
+                  <div className="text-sm text-muted-foreground">No roles assigned</div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -187,35 +170,35 @@ export function CustomerDetailsDialog({ customer, open, onOpenChange }: Customer
                   <p className="text-sm font-medium text-muted-foreground">Genesis URL</p>
                   <div className="flex items-center">
                     <Server className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <p className="text-base">{customer.setting.url}</p>
+                    <p className="text-base">{customer.setting?.url || "-"}</p>
                   </div>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">IP Address</p>
                   <div className="flex items-center">
                     <Server className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <p className="text-base">{customer.setting.ip}</p>
+                    <p className="text-base">{customer.setting?.ip || "-"}</p>
                   </div>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Genesis Session Key</p>
                   <div className="flex items-center">
                     <Key className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <p className="text-base break-all">{customer.setting.genesis_session_key}</p>
+                    <p className="text-base break-all">{customer.setting?.genesis_session_key || "-"}</p>
                   </div>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Integration Created</p>
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <p className="text-base">{formatDate(customer.setting.created_at)}</p>
+                    <p className="text-base">{formatDate(customer.setting?.created_at)}</p>
                   </div>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Integration Updated</p>
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <p className="text-base">{formatDate(customer.setting.updated_at)}</p>
+                    <p className="text-base">{formatDate(customer.setting?.updated_at)}</p>
                   </div>
                 </div>
               </CardContent>

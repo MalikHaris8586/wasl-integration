@@ -2,13 +2,13 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
 interface CustomerSetting {
-  id: number;
-  user_id: number;
-  genesis_session_key: string;
-  ip: string;
-  url: string;
-  created_at: string;
-  updated_at: string;
+  id?: number;
+  user_id?: number;
+  genesis_session_key?: string;
+  ip?: string;
+  url?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface CustomerRole {
@@ -32,7 +32,7 @@ interface Customer {
   last_login_at: string | null;
   last_active_at: string | null;
   roles: CustomerRole[];
-  setting: CustomerSetting;
+  setting?: CustomerSetting;
 }
 
 interface CustomerCount {
@@ -134,6 +134,80 @@ export const fetchCustomerById = createAsyncThunk(
   }
 );
 
+export const updateCustomer = createAsyncThunk(
+  "customers/updateCustomer",
+  async ({ userId, data }: { userId: number; data: any }, { getState }) => {
+    try {
+      const state = getState() as { auth: { token: string } };
+      const token = state.auth.token;
+      console.log("Updating customer with token:", token);
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      // Ensure setting object exists
+      const updateData = {
+        ...data,
+        setting: {
+          ip: data.setting?.ip || "",
+          genesis_session_key: data.setting?.genesis_session_key || "",
+          url: data.setting?.url || "",
+        },
+      };
+
+      const response = await axios.put(
+        `https://wasl-api.tracking.me/api/admin/user/${userId}`,
+        updateData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      console.log("Update Customer API Response:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("API Error:", error);
+      throw error;
+    }
+  }
+);
+
+export const createCustomer = createAsyncThunk(
+  "customers/createCustomer",
+  async (data: any, { getState }) => {
+    try {
+      const state = getState() as { auth: { token: string } };
+      const token = state.auth.token;
+      console.log("Creating customer with token:", token);
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await axios.post(
+        `https://wasl-api.tracking.me/api/admin/user`,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error("API Error:", error);
+      throw error;
+    }
+  }
+);
+
 const customerSlice = createSlice({
   name: "customers",
   initialState,
@@ -176,6 +250,41 @@ const customerSlice = createSlice({
       .addCase(fetchCustomerById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to fetch customer details";
+      })
+      .addCase(updateCustomer.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateCustomer.fulfilled, (state, action) => {
+        state.loading = false;
+        // Update the customer in the list
+        const updatedCustomer = action.payload.data;
+        const index = state.customers.findIndex(c => c.id === updatedCustomer.id);
+        if (index !== -1) {
+          state.customers[index] = updatedCustomer;
+        }
+        // Update selected customer if it's the same one
+        if (state.selectedCustomer?.id === updatedCustomer.id) {
+          state.selectedCustomer = updatedCustomer;
+        }
+      })
+      .addCase(updateCustomer.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to update customer";
+      })
+      .addCase(createCustomer.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createCustomer.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.data) {
+          state.customers = [...state.customers, action.payload.data];
+        }
+      })
+      .addCase(createCustomer.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to create customer";
       });
   },
 });
