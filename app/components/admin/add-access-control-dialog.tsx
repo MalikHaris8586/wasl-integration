@@ -24,10 +24,10 @@ import { Input } from "@/components/ui/input"
 const formSchema = z.object({
   user_id: z.string().min(1, {
     message: "User is required.",
-  }).transform(val => Number(val)),
+  }),
   plan_id: z.string().min(1, {
     message: "Plan is required.",
-  }).transform(val => Number(val)),
+  }),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -60,7 +60,7 @@ export function AddAccessControlDialog({ open, onOpenChange, onSubmit }: AddAcce
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('https://wasl-api.tracking.me/api/admin/api-access-controls', {
+        const response = await axios.get('https://wasl-api.tracking.me/api/admin/users', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ export function AddAccessControlDialog({ open, onOpenChange, onSubmit }: AddAcce
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Select User</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select user" />
@@ -128,7 +128,7 @@ export function AddAccessControlDialog({ open, onOpenChange, onSubmit }: AddAcce
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Plan</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select plan" />
@@ -158,4 +158,4 @@ export function AddAccessControlDialog({ open, onOpenChange, onSubmit }: AddAcce
       </DialogContent>
     </Dialog>
   )
-}
+} 

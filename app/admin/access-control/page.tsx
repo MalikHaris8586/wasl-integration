@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { BarChart3, Settings, Plus } from "lucide-react"
+import { BarChart3, Settings, Plus, Edit, Trash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
@@ -15,9 +15,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { DataTable } from "@/components/data-table"
+import { ViewLimitsDialog } from "@/components/admin/view-limits-dialog"
 import { AddAccessControlDialog } from "@/components/admin/add-access-control-dialog"
 import { EditAccessControlDialog } from "@/components/admin/edit-access-control-dialog"
-import { ViewLimitsDialog } from "@/components/admin/view-limits-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,149 +28,147 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useDispatch, useSelector } from "react-redux"
+import { AppDispatch, RootState } from "@/app/admin/store/store"
+import { fetchApiAccessControls, fetchUserDetails, updateApiAccessControl, createApiAccessControl } from "@/app/admin/store/slices/apiAccessControlSlice"
 
-// Define the data type
-type AccessControl = {
-  id: string
-  customerName: string
-  paymentPlan: string
-  companiesLimit: number
-  driversLimit: number
-  vehiclesLimit: number
-  companiesUsed: number
-  driversUsed: number
-  vehiclesUsed: number
-  status: "active" | "warning" | "critical"
-  lastUpdated: Date
+interface AccessControl {
+  id: number
+  user_id: number
+  ip_address: string
+  api_name: string
+  allowed_calls: number
+  used_calls: number
+  created_at: string
+  updated_at: string
 }
 
-// Sample data
-const accessControls: AccessControl[] = [
-  {
-    id: "1",
-    customerName: "Acme Corporation",
-    paymentPlan: "Premium Plan",
-    companiesLimit: 50,
-    driversLimit: 200,
-    vehiclesLimit: 150,
-    companiesUsed: 32,
-    driversUsed: 145,
-    vehiclesUsed: 98,
-    status: "active",
-    lastUpdated: new Date(2023, 6, 15),
-  },
-  {
-    id: "2",
-    customerName: "XYZ Industries",
-    paymentPlan: "Standard Plan",
-    companiesLimit: 30,
-    driversLimit: 100,
-    vehiclesLimit: 80,
-    companiesUsed: 15,
-    driversUsed: 45,
-    vehiclesUsed: 30,
-    status: "active",
-    lastUpdated: new Date(2023, 7, 2),
-  },
-  {
-    id: "3",
-    customerName: "Global Logistics",
-    paymentPlan: "Basic Plan",
-    companiesLimit: 20,
-    driversLimit: 80,
-    vehiclesLimit: 60,
-    companiesUsed: 5,
-    driversUsed: 20,
-    vehiclesUsed: 15,
-    status: "active",
-    lastUpdated: new Date(2023, 7, 10),
-  },
-  {
-    id: "4",
-    customerName: "Saudi Transport",
-    paymentPlan: "Premium Plan",
-    companiesLimit: 40,
-    driversLimit: 120,
-    vehiclesLimit: 100,
-    companiesUsed: 25,
-    driversUsed: 80,
-    vehiclesUsed: 95,
-    status: "warning",
-    lastUpdated: new Date(2023, 8, 5),
-  },
-  {
-    id: "5",
-    customerName: "Riyadh Movers",
-    paymentPlan: "Standard Plan",
-    companiesLimit: 25,
-    driversLimit: 75,
-    vehiclesLimit: 50,
-    companiesUsed: 10,
-    driversUsed: 35,
-    vehiclesUsed: 48,
-    status: "warning",
-    lastUpdated: new Date(2023, 8, 12),
-  },
-  {
-    id: "6",
-    customerName: "Jeddah Shipping",
-    paymentPlan: "Basic Plan",
-    companiesLimit: 15,
-    driversLimit: 60,
-    vehiclesLimit: 40,
-    companiesUsed: 14,
-    driversUsed: 58,
-    vehiclesUsed: 39,
-    status: "critical",
-    lastUpdated: new Date(2023, 8, 20),
-  },
-]
+interface User {
+  id: number
+  name: string
+  email: string
+  email_verified_at: string | null
+  phone_number: string
+  created_at: string
+  updated_at: string
+  active: number
+  last_login_at: string | null
+  last_active_at: string | null
+  access_control: AccessControl[]
+}
 
 export default function AccessControlPage() {
-  const [data, setData] = useState<AccessControl[]>(accessControls)
-  const [isAddAccessControlOpen, setIsAddAccessControlOpen] = useState(false)
-  const [isEditAccessControlOpen, setIsEditAccessControlOpen] = useState(false)
-  const [selectedAccessControl, setSelectedAccessControl] = useState<AccessControl | null>(null)
+  const dispatch = useDispatch<AppDispatch>()
+  const { users, selectedUser, loading, error } = useSelector((state: RootState) => state.apiAccessControl)
+  const token = useSelector((state: RootState) => state.auth.token)
   const [isViewLimitsOpen, setIsViewLimitsOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [editInitialData, setEditInitialData] = useState({
-    customerName: "",
-    paymentPlan: "",
-  })
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [isAddAccessControlOpen, setIsAddAccessControlOpen] = useState(false)
+  const [isEditAccessControlOpen, setIsEditAccessControlOpen] = useState(false)
 
-  // Define columns for the data table
-  const columns: ColumnDef<AccessControl>[] = [
+  useEffect(() => {
+    if (token) {
+      console.log('Token available, fetching data...');
+      dispatch(fetchApiAccessControls());
+    } else {
+      console.log('No token available');
+    }
+  }, [dispatch, token]);
+
+  // Log data whenever it changes
+  useEffect(() => {
+    if (users.length > 0) {
+      console.log('Current users data:', users);
+    }
+  }, [users]);
+
+  const handleEdit = (user: User) => {
+    setSelectedUserId(user.id);
+    dispatch(fetchUserDetails(user.id));
+    setIsEditAccessControlOpen(true);
+  };
+
+  const handleDelete = (user: User) => {
+    setSelectedUserId(user.id);
+    dispatch(fetchUserDetails(user.id));
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleViewDetails = async (user: User) => {
+    try {
+      console.log("Opening details for user:", user.id);
+      setSelectedUserId(user.id);
+      const resultAction = await dispatch(fetchUserDetails(user.id));
+      if (fetchUserDetails.fulfilled.match(resultAction)) {
+        console.log("Successfully fetched user details:", resultAction.payload);
+        setIsViewLimitsOpen(true);
+      }
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+    }
+  };
+
+  const columns: ColumnDef<User>[] = [
     {
-      accessorKey: "customerName",
+      accessorKey: "name",
       header: "Customer Name",
     },
     {
-      accessorKey: "paymentPlan",
-      header: "Payment Plan",
+      accessorKey: "email",
+      header: "Email",
     },
     {
-      accessorKey: "status",
+      accessorKey: "active",
       header: "Status",
       cell: ({ row }) => {
-        const status = row.getValue("status") as string
+        const active = row.getValue("active") as number
         return (
-          <Badge variant={status === "active" ? "outline" : status === "warning" ? "secondary" : "destructive"}>
-            {status === "active" ? "Active" : status === "warning" ? "Near Limit" : "Critical"}
+          <Badge variant={active === 1 ? "outline" : "destructive"}>
+            {active === 1 ? "Active" : "Inactive"}
           </Badge>
         )
       },
     },
     {
-      accessorKey: "companiesLimit",
-      header: "Companies Assigned Limit",
+      id: "company",
+      header: "Company API Limit",
       cell: ({ row }) => {
-        const limit = row.getValue("companiesLimit") as number
-        const used = row.original.companiesUsed
-        const percentage = (used / limit) * 100
+        const user = row.original
+        const companyControl = user.access_control.find(ac => ac.api_name === "company")
+        if (!companyControl) return "No limit set"
+        
+        const percentage = (companyControl.used_calls / companyControl.allowed_calls) * 100
         return (
           <div className="flex items-center gap-2">
             <span>
-              {used}/{limit}
+              {companyControl.used_calls}/{companyControl.allowed_calls}
+            </span>
+            <div className="w-24">
+              
+              <Progress
+                value={percentage}
+                className="h-2"
+                indicatorClassName={percentage > 90 ? "bg-red-500" : percentage > 75 ? "bg-yellow-500" : undefined}
+              />
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      id: "driver",
+      header: "Driver API Limit",
+      cell: ({ row }) => {
+        const user = row.original
+        const driverControl = user.access_control.find(ac => ac.api_name === "driver")
+        if (!driverControl) return "No limit set"
+        
+        const percentage = (driverControl.used_calls / driverControl.allowed_calls) * 100
+        return (
+          <div className="flex items-center gap-2">
+            <span>
+              {driverControl.used_calls}/{driverControl.allowed_calls}
             </span>
             <div className="w-24">
               <Progress
@@ -184,39 +182,18 @@ export default function AccessControlPage() {
       },
     },
     {
-      accessorKey: "driversLimit",
-      header: "Drivers Assigned Limit",
+      id: "vehicle",
+      header: "Vehicle API Limit",
       cell: ({ row }) => {
-        const limit = row.getValue("driversLimit") as number
-        const used = row.original.driversUsed
-        const percentage = (used / limit) * 100
+        const user = row.original
+        const vehicleControl = user.access_control.find(ac => ac.api_name === "vehicle")
+        if (!vehicleControl) return "No limit set"
+        
+        const percentage = (vehicleControl.used_calls / vehicleControl.allowed_calls) * 100
         return (
           <div className="flex items-center gap-2">
             <span>
-              {used}/{limit}
-            </span>
-            <div className="w-24">
-              <Progress
-                value={percentage}
-                className="h-2"
-                indicatorClassName={percentage > 90 ? "bg-red-500" : percentage > 75 ? "bg-yellow-500" : undefined}
-              />
-            </div>
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: "vehiclesLimit",
-      header: "Vehicles Assigned Limit",
-      cell: ({ row }) => {
-        const limit = row.getValue("vehiclesLimit") as number
-        const used = row.original.vehiclesUsed
-        const percentage = (used / limit) * 100
-        return (
-          <div className="flex items-center gap-2">
-            <span>
-              {used}/{limit}
+              {vehicleControl.used_calls}/{vehicleControl.allowed_calls}
             </span>
             <div className="w-24">
               <Progress
@@ -233,15 +210,12 @@ export default function AccessControlPage() {
       id: "status",
       header: "View Status",
       cell: ({ row }) => {
-        const accessControl = row.original
+        const user = row.original
         return (
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setSelectedAccessControl(accessControl)
-              setIsViewLimitsOpen(true)
-            }}
+            onClick={() => handleViewDetails(user)}
           >
             <BarChart3 className="mr-2 h-4 w-4" />
             View Details
@@ -253,7 +227,7 @@ export default function AccessControlPage() {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => {
-        const accessControl = row.original
+        const user = row.original
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -264,26 +238,12 @@ export default function AccessControlPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelectedAccessControl(accessControl)
-                  setEditInitialData({
-                    customerName: accessControl.customerName,
-                    paymentPlan: accessControl.paymentPlan,
-                  })
-                  setIsEditAccessControlOpen(true)
-                }}
-              >
-                Edit Payment Plan
+              <DropdownMenuItem onClick={() => handleEdit(user)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  setSelectedAccessControl(accessControl)
-                  setIsDeleteDialogOpen(true)
-                }}
-                className="text-red-600"
-              >
+              <DropdownMenuItem onClick={() => handleDelete(user)} className="text-red-600">
+                <Trash className="mr-2 h-4 w-4" />
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -293,108 +253,43 @@ export default function AccessControlPage() {
     },
   ]
 
-  const handleAddAccessControl = (accessControl: {
-    customerName: string
-    paymentPlan: string
-  }) => {
-    // Find if customer already exists
-    const existingCustomer = data.find((a) => a.customerName === accessControl.customerName)
-
-    if (existingCustomer) {
-      // Update existing customer
-      setData((prev) =>
-        prev.map((a) => {
-          if (a.customerName === accessControl.customerName) {
-            return {
-              ...a,
-              paymentPlan: accessControl.paymentPlan,
-              // Set limits based on payment plan
-              ...(accessControl.paymentPlan === "Basic Plan" && {
-                companiesLimit: 20,
-                driversLimit: 80,
-                vehiclesLimit: 60,
-              }),
-              ...(accessControl.paymentPlan === "Standard Plan" && {
-                companiesLimit: 30,
-                driversLimit: 100,
-                vehiclesLimit: 80,
-              }),
-              ...(accessControl.paymentPlan === "Premium Plan" && {
-                companiesLimit: 50,
-                driversLimit: 200,
-                vehiclesLimit: 150,
-              }),
-              lastUpdated: new Date(),
-            }
-          }
-          return a
-        }),
-      )
-    } else {
-      // Add new customer
-      const newAccessControl: AccessControl = {
-        id: (data.length + 1).toString(),
-        customerName: accessControl.customerName,
-        paymentPlan: accessControl.paymentPlan,
-        // Set limits based on payment plan
-        companiesLimit:
-          accessControl.paymentPlan === "Basic Plan" ? 20 : accessControl.paymentPlan === "Standard Plan" ? 30 : 50,
-        driversLimit:
-          accessControl.paymentPlan === "Basic Plan" ? 80 : accessControl.paymentPlan === "Standard Plan" ? 100 : 200,
-        vehiclesLimit:
-          accessControl.paymentPlan === "Basic Plan" ? 60 : accessControl.paymentPlan === "Standard Plan" ? 80 : 150,
-        companiesUsed: 0,
-        driversUsed: 0,
-        vehiclesUsed: 0,
-        status: "active",
-        lastUpdated: new Date(),
-      }
-      setData((prev) => [...prev, newAccessControl])
-    }
-    setIsAddAccessControlOpen(false)
+  if (!token) {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-red-600">Authentication Required</h2>
+          <p className="mt-2">Please log in to access this page.</p>
+        </div>
+      </div>
+    );
   }
 
-  const handleEditAccessControl = (accessControl: {
-    customerName: string
-    paymentPlan: string
-  }) => {
-    setData((prev) =>
-      prev.map((a) => {
-        if (a.id === selectedAccessControl?.id) {
-          return {
-            ...a,
-            paymentPlan: accessControl.paymentPlan,
-            // Update limits based on payment plan
-            ...(accessControl.paymentPlan === "Basic Plan" && {
-              companiesLimit: 20,
-              driversLimit: 80,
-              vehiclesLimit: 60,
-            }),
-            ...(accessControl.paymentPlan === "Standard Plan" && {
-              companiesLimit: 30,
-              driversLimit: 100,
-              vehiclesLimit: 80,
-            }),
-            ...(accessControl.paymentPlan === "Premium Plan" && {
-              companiesLimit: 50,
-              driversLimit: 200,
-              vehiclesLimit: 150,
-            }),
-            lastUpdated: new Date(),
-          }
-        }
-        return a
-      }),
-    )
-    setIsEditAccessControlOpen(false)
+  if (loading) {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold">Loading...</h2>
+          <p className="mt-2">Fetching access control data</p>
+        </div>
+      </div>
+    );
   }
 
-  const handleDeleteAccessControl = () => {
-    if (selectedAccessControl) {
-      setData((prev) => prev.filter((a) => a.id !== selectedAccessControl.id))
-      setIsDeleteDialogOpen(false)
-      setSelectedAccessControl(null)
-    }
+  if (error) {
+    return (
+      <div className="container mx-auto py-10">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-red-600">Error</h2>
+          <p className="mt-2">{error}</p>
+          <button 
+            onClick={() => dispatch(fetchApiAccessControls())}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -413,32 +308,60 @@ export default function AccessControlPage() {
       </div>
 
       <div className="rounded-md border">
-        <DataTable columns={columns} data={data} />
+        <DataTable columns={columns} data={users} />
       </div>
 
       {/* Add Access Control Dialog */}
       <AddAccessControlDialog
         open={isAddAccessControlOpen}
         onOpenChange={setIsAddAccessControlOpen}
-        onSubmit={handleAddAccessControl}
+        onSubmit={async (values) => {
+          try {
+            await dispatch(createApiAccessControl(values));
+            dispatch(fetchApiAccessControls()); // Refresh the list
+            setIsAddAccessControlOpen(false);
+          } catch (error) {
+            console.error('Error creating access control:', error);
+          }
+        }}
       />
 
       {/* Edit Access Control Dialog */}
-      {selectedAccessControl && (
+      {selectedUser && (
         <EditAccessControlDialog
           open={isEditAccessControlOpen}
           onOpenChange={setIsEditAccessControlOpen}
-          onSubmit={handleEditAccessControl}
-          initialData={editInitialData}
+          onSubmit={async (values) => {
+            try {
+              console.log('Submitting update with values:', values);
+              await dispatch(updateApiAccessControl({
+                user_id: selectedUser.id,
+                plan_id: Number(values.plan_id)
+              }));
+              dispatch(fetchApiAccessControls()); // Refresh the list
+              setIsEditAccessControlOpen(false);
+            } catch (error) {
+              console.error('Error updating access control:', error);
+            }
+          }}
+          initialData={{
+            name: selectedUser.name,
+            email: selectedUser.email,
+            phone_number: selectedUser.phone_number,
+            plan_id: selectedUser.access_control.find(ac => ac.api_name === "company")?.plan_id?.toString() || "",
+          }}
         />
       )}
 
       {/* View Limits Dialog */}
-      {selectedAccessControl && (
+      {selectedUser && (
         <ViewLimitsDialog
           open={isViewLimitsOpen}
-          onOpenChange={setIsViewLimitsOpen}
-          accessControl={selectedAccessControl}
+          onOpenChange={(open: boolean) => {
+            console.log("Dialog state changing to:", open);
+            setIsViewLimitsOpen(open);
+          }}
+          accessControl={selectedUser}
         />
       )}
 
@@ -449,13 +372,17 @@ export default function AccessControlPage() {
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete the access control settings for{" "}
-              <span className="font-semibold">{selectedAccessControl?.customerName}</span>. This action cannot be
+              <span className="font-semibold">{selectedUser?.name}</span>. This action cannot be
               undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteAccessControl} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => {
+              console.log('Deleting:', selectedUserId);
+              setIsDeleteDialogOpen(false);
+              setSelectedUserId(null);
+            }} className="bg-red-600 hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

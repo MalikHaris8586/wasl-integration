@@ -15,7 +15,7 @@ import { CustomerDetailsDialog } from "@/components/admin/customer-details-dialo
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { fetchCustomers, fetchCustomerById, createCustomer } from '../store/slices/customerSlice'
+import { fetchCustomers, fetchCustomerById, createCustomer, deleteApiAccessControl, deleteCustomer, updateCustomerStatus, updateCustomer } from '../store/slices/customerSlice'
 import { AppDispatch } from '../store/store'
 
 // Define the data type based on API response
@@ -130,12 +130,20 @@ export default function CustomersPage() {
     return true;
   }) || [];
 
-  const handleDeleteCustomer = () => {
-    // Implement delete functionality
-    setIsDeleteOpen(false);
+  const handleDeleteCustomer = async (customerId: number) => {
+    try {
+      await dispatch(deleteCustomer(customerId)).unwrap();
+      // Close the delete dialog
+      setIsDeleteOpen(false);
+      // Refresh the customers list
+      dispatch(fetchCustomers(pagination.current_page));
+    } catch (error: any) {
+      console.error("Error deleting customer:", error);
+      alert(`Failed to delete customer: ${error.message || 'Unknown error occurred'}`);
+    }
   };
 
-  const handleAddCustomer = (values: {
+  const handleAddCustomer = async (values: {
     name: string;
     email: string;
     phoneNumber: string;
@@ -146,20 +154,38 @@ export default function CustomersPage() {
     notes?: string;
   }) => {
     try {
-      dispatch(createCustomer({
+      // Format data exactly as per API requirements
+      const customerData = {
         name: values.name,
         email: values.email,
-        phone_number: values.phoneNumber,
-        active: values.isActive ? 1 : 0,
+        phoneNumber: values.phoneNumber,
         setting: {
-          ip: values.ipAddress || "",
-          genesis_session_key: values.genesisSessionKey,
-          url: values.url,
+          ipAddress: values.ipAddress || "",
+          genesisSessionKey: values.genesisSessionKey,
+          url: values.url
         }
-      }));
-      setIsAddCustomerOpen(false);
-    } catch (error) {
+      };
+
+      console.log('Submitting customer data:', customerData);
+
+      const result = await dispatch(createCustomer(customerData)).unwrap();
+
+      if (result?.data) {
+        console.log('Customer created successfully:', result.data);
+        setIsAddCustomerOpen(false);
+        // Refresh the customers list
+        dispatch(fetchCustomers(pagination.current_page));
+      }
+    } catch (error: any) {
       console.error("Error creating customer:", error);
+      
+      // Show a simple error message to the user
+      let errorMessage = error.message || 'Failed to create customer';
+      if (error.originalError?.description) {
+        errorMessage = JSON.stringify(error.originalError.description);
+      }
+
+      alert(`Error: ${errorMessage}`);
     }
   };
 
@@ -177,10 +203,75 @@ export default function CustomersPage() {
         console.error("No customer selected");
         return;
       }
-      await dispatch(fetchCustomerById(selectedCustomerId));
+
+      // Format the data for the API
+      const updateData = {
+        userId: selectedCustomerId,
+        data: {
+          name: values.name,
+          email: values.email,
+          phone_number: values.phoneNumber,
+          setting: {
+            ip: values.ipAddress,
+            genesis_session_key: values.genesisSessionKey,
+            url: values.url
+          }
+        }
+      };
+
+      console.log('Submitting edit data:', updateData);
+
+      // Dispatch the update action
+      await dispatch(updateCustomer(updateData)).unwrap();
+      
+      // Close the edit dialog
       setIsEditOpen(false);
-    } catch (error) {
+      
+      // Refresh the customer list
+      dispatch(fetchCustomers(pagination.current_page));
+      
+    } catch (error: any) {
       console.error("Error updating customer:", error);
+      let errorMessage = error.message || 'Failed to update customer';
+      if (error.originalError?.description) {
+        errorMessage = JSON.stringify(error.originalError.description);
+      }
+      alert(`Error: ${errorMessage}`);
+    }
+  };
+
+  const handleDeleteApiAccess = async (id: number) => {
+    try {
+      await dispatch(deleteApiAccessControl(id)).unwrap();
+      // Optional: Show success message
+      alert("API access control deleted successfully");
+    } catch (error: any) {
+      // Extract error message properly
+      let errorMessage = "Failed to delete API access control";
+      
+      if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.type && error?.description) {
+        errorMessage = `${error.type}: ${error.description}`;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show error message to user
+      alert(errorMessage);
+    }
+  };
+
+  const handleStatusChange = async (customerId: number, currentStatus: number) => {
+    try {
+      // Toggle between 1 and 0
+      const newStatus = currentStatus === 1 ? 0 : 1;
+      await dispatch(updateCustomerStatus({ userId: customerId, active: newStatus })).unwrap();
+      // Refresh the list
+      dispatch(fetchCustomers(pagination.current_page));
+    } catch (error: any) {
+      console.error("Error updating customer status:", error);
+      alert(`Failed to update status: ${error.message || 'Unknown error occurred'}`);
     }
   };
 
@@ -227,18 +318,26 @@ export default function CustomersPage() {
       accessorKey: "active",
       header: "Status",
       cell: ({ row }) => {
-        const isActive = row.original.active === 1
+        const customer = row.original;
+        const isActive = customer.active === 1;
         return (
-          <Badge variant={isActive ? "default" : "destructive"}>
-            {isActive ? "Active" : "Inactive"}
-          </Badge>
-        )
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={isActive}
+              onCheckedChange={() => handleStatusChange(customer.id, customer.active)}
+              aria-label="Toggle active status"
+            />
+            <Badge variant={isActive ? "default" : "secondary"}>
+              {isActive ? "Active" : "Inactive"}
+            </Badge>
+          </div>
+        );
       },
     },
     {
       id: "actions",
       cell: ({ row }) => {
-        const customer = row.original
+        const customer = row.original;
         return (
           <div className="flex items-center gap-2">
             <Button
@@ -269,14 +368,15 @@ export default function CustomersPage() {
               variant="ghost"
               size="icon"
               onClick={() => {
-                setSelectedCustomerId(customer.id);
-                setIsDeleteOpen(true);
+                if (confirm('Are you sure you want to delete this customer?')) {
+                  handleDeleteCustomer(customer.id);
+                }
               }}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
-        )
+        );
       },
     },
   ]

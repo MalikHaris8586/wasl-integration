@@ -126,7 +126,9 @@ export default function LoginPage() {
 
     if (loginUser.fulfilled.match(resultAction)) {
       const data = resultAction.payload?.data;
-      console.log("Login data:", data);
+      console.log("Full API Response:", resultAction.payload);
+      console.log("Login data structure:", JSON.stringify(data, null, 2));
+      console.log("User object structure:", JSON.stringify(data.user, null, 2));
 
       dispatch(saveUserData(data.user));
       dispatch(saveToken(data.token));
@@ -140,8 +142,24 @@ export default function LoginPage() {
         type: "success",
       });
 
-      // Always redirect to admin dashboard
-      router.push("/admin/dashboard");
+      // Check if user has admin role in roles array
+      const userRoles = data.user?.roles || [];
+      console.log("User roles array:", userRoles);
+      
+      const isAdmin = userRoles.some((role: any) => 
+        role.name === "admin" || role.name === "Admin" || role === "admin" || role === "Admin"
+      );
+      
+      console.log("Role check - Is admin?:", isAdmin);
+      
+      // Redirect based on role
+      if (isAdmin) {
+        console.log("Redirecting to admin dashboard");
+        router.push("/admin/dashboard");
+      } else {
+        console.log("Redirecting to customer dashboard");
+        router.push("/customer/dashboard");
+      }
     } else {
       showManualToast({
         title: "Error",

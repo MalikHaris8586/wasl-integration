@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Suspense } from "react"
-import { Providers } from "./providers"
+import { Providers } from '@/lib/providers'
 import { useSelector } from "react-redux"
 
 export default function AdminLayout({

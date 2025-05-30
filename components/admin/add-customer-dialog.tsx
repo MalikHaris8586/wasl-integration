@@ -14,43 +14,47 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { AlertCircle, HelpCircle } from "lucide-react"
 
+// Schema
 const formSchema = z
   .object({
-    name: z.string().min(2, {
-      message: "Name must be at least 2 characters.",
-    }),
-    email: z.string().email({
-      message: "Please enter a valid email address.",
-    }),
+    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    email: z.string().email({ message: "Please enter a valid email address." }),
     password: z
       .string()
-      .min(8, {
-        message: "Password must be at least 8 characters.",
-      })
-      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, {
+      .min(8, { message: "Password must be at least 8 characters." })
+      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/, {
         message:
-          "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.",
+          "Password must contain uppercase, lowercase, number, and special character.",
       }),
-    confirmPassword: z.string().min(8, {
-      message: "Password must be at least 8 characters.",
-    }),
-    phoneNumber: z.string().min(10, {
-      message: "Phone number must be at least 10 characters.",
-    }),
+    confirmPassword: z.string().min(8, { message: "Confirm Password is required." }),
+    phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 characters." }),
     ipAddress: z.string().optional(),
-    genesisSessionKey: z.string().min(1, {
-      message: "Genesis Session Key is required.",
-    }),
-    url: z.string().url({
-      message: "Please enter a valid URL.",
-    }),
+    genesisSessionKey: z.string().min(1, { message: "Genesis Session Key is required." }),
+    url: z.string().url({ message: "Please enter a valid URL." }),
     isActive: z.boolean().default(true),
     notes: z.string().optional(),
   })
@@ -67,7 +71,11 @@ interface AddCustomerDialogProps {
   onSubmit: (values: Omit<FormValues, "password" | "confirmPassword">) => void
 }
 
-export function AddCustomerDialog({ open, onOpenChange, onSubmit }: AddCustomerDialogProps) {
+export function AddCustomerDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+}: AddCustomerDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("account")
 
@@ -89,16 +97,10 @@ export function AddCustomerDialog({ open, onOpenChange, onSubmit }: AddCustomerD
 
   function handleSubmit(values: FormValues) {
     setIsLoading(true)
-
-    // Simulate API call
     setTimeout(() => {
       setIsLoading(false)
-
-      // Remove password fields before passing to parent
       const { password, confirmPassword, ...customerData } = values
       onSubmit(customerData)
-
-      // Reset form
       form.reset()
       setActiveTab("account")
     }, 1000)
@@ -130,221 +132,141 @@ export function AddCustomerDialog({ open, onOpenChange, onSubmit }: AddCustomerD
                 <TabsTrigger value="integration">Integration Details</TabsTrigger>
               </TabsList>
 
+              {/* Account Tab */}
               <TabsContent value="account" className="space-y-4 mt-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Company Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Customer company name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="customer@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Name */}
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company Name</FormLabel>
+                    <FormControl><Input placeholder="Customer company name" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                
+                {/* Email */}
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl><Input placeholder="customer@example.com" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Password & Confirm */}
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center gap-2">
-                          <FormLabel>Password</FormLabel>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p>Password must contain at least:</p>
-                                <ul className="list-disc pl-4 text-xs">
-                                  <li>8 characters</li>
-                                  <li>One uppercase letter</li>
-                                  <li>One lowercase letter</li>
-                                  <li>One number</li>
-                                  <li>One special character</li>
-                                </ul>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormField control={form.control} name="password" render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-center gap-2">
+                        <FormLabel>Password</FormLabel>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild><HelpCircle className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                            <TooltipContent>
+                              <p>Password must contain:</p>
+                              <ul className="list-disc pl-4 text-xs">
+                                <li>8 characters</li><li>Uppercase</li><li>Lowercase</li><li>Number</li><li>Special char</li>
+                              </ul>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <FormControl><Input type="password" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="confirmPassword" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl><Input type="password" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="phoneNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="+966 123456789" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Additional notes about this customer" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
+                {/* Phone */}
+                <FormField control={form.control} name="phoneNumber" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl><Input placeholder="+966 123456789" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Notes */}
+                <FormField control={form.control} name="notes" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes (Optional)</FormLabel>
+                    <FormControl><Input placeholder="Additional notes..." {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               </TabsContent>
 
+              {/* Integration Tab */}
               <TabsContent value="integration" className="space-y-4 mt-4">
-                <div className="rounded-md bg-blue-50 p-4 mb-4">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <AlertCircle className="h-5 w-5 text-blue-400" aria-hidden="true" />
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-blue-800">Integration Information</h3>
-                      <div className="mt-2 text-sm text-blue-700">
-                        <p>
-                          These details are required to connect the customer's Genesis (Wialon) account with our WASL
-                          integration platform.
-                        </p>
-                      </div>
-                    </div>
+                <div className="rounded-md bg-blue-50 p-4 mb-4 flex gap-3">
+                  <AlertCircle className="text-blue-400 mt-1" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">Integration Information</p>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Required for WASL & Genesis (Wialon) integration.
+                    </p>
                   </div>
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="ipAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex items-center gap-2">
-                        <FormLabel>IP Address</FormLabel>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>The IP address of the customer's Genesis server</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <FormControl>
-                        <Input placeholder="192.168.1.1" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="genesisSessionKey"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex items-center gap-2">
-                        <FormLabel>Genesis Session Key</FormLabel>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>The API key used to authenticate with the Genesis platform</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="url"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex items-center gap-2">
-                        <FormLabel>Genesis URL</FormLabel>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>The URL of the customer's Genesis instance</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <FormControl>
-                        <Input placeholder="https://example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Active Status</FormLabel>
-                        <div className="text-sm text-muted-foreground">
-                          Enable or disable this customer's access to the platform
-                        </div>
-                      </div>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+                {/* IP Address */}
+                <FormField control={form.control} name="ipAddress" render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center gap-2">
+                      <FormLabel>IP Address</FormLabel>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild><HelpCircle className="h-4 w-4 text-muted-foreground" /></TooltipTrigger>
+                          <TooltipContent><p>Genesis server IP</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <FormControl><Input placeholder="192.168.1.1" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Session Key */}
+                <FormField control={form.control} name="genesisSessionKey" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Genesis Session Key</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* URL */}
+                <FormField control={form.control} name="url" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Genesis URL</FormLabel>
+                    <FormControl><Input placeholder="https://example.com" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Active Toggle */}
+                <FormField control={form.control} name="isActive" render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between border p-3 rounded-lg shadow-sm">
+                    <div>
+                      <FormLabel>Active Status</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Enable or disable customer access
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )} />
               </TabsContent>
             </Tabs>
 
+            {/* Footer */}
             <DialogFooter className="flex justify-between pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel

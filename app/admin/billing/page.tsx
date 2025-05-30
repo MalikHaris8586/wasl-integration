@@ -1,8 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { CreditCard, DollarSign, Download, Plus, Users } from "lucide-react"
+import { useDispatch, useSelector } from "react-redux"
+import { AppDispatch, RootState } from "../store/store"
+import { fetchPaymentPlanDashboard } from "../store/slices/paymentPlanSlice"
 
 import { DataTable } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
@@ -111,7 +114,26 @@ const invoices: Invoice[] = [
 export default function BillingPage() {
   const [plans, setPlans] = useState<BillingPlan[]>(billingPlans)
   const [isAddPlanOpen, setIsAddPlanOpen] = useState(false)
+  const dispatch = useDispatch<AppDispatch>()
+  const token = useSelector((state: RootState) => state.auth.token)
+  
+  const dashboardData = useSelector((state: RootState) => state.paymentPlan)
+  const { total_revenue, pending_revenue, active_customers, loading } = useMemo(
+    () => ({
+      total_revenue: dashboardData?.total_revenue || { value: 0, change: "0%" },
+     
+      pending_revenue: dashboardData?.pending_revenue || { value: 0, change: "0%" },
+      active_customers: dashboardData?.active_customers || { value: 0, change: 0 },
+      loading: dashboardData?.loading || false
+    }),
+    [dashboardData]
+  )
 
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchPaymentPlanDashboard());
+    }
+  }, [dispatch, token]);
   // Define columns for the billing plans table
   const planColumns: ColumnDef<BillingPlan>[] = [
     {
@@ -270,16 +292,6 @@ export default function BillingPage() {
     setIsAddPlanOpen(false)
   }
 
-  // Calculate total revenue
-  const totalRevenue = invoices
-    .filter((invoice) => invoice.status === "paid")
-    .reduce((sum, invoice) => sum + invoice.amount, 0)
-
-  // Calculate pending revenue
-  const pendingRevenue = invoices
-    .filter((invoice) => invoice.status === "pending" || invoice.status === "overdue")
-    .reduce((sum, invoice) => sum + invoice.amount, 0)
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -297,12 +309,14 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {new Intl.NumberFormat("en-US", {
+              {loading ? "Loading..." : new Intl.NumberFormat("en-US", {
                 style: "currency",
                 currency: "SAR",
-              }).format(totalRevenue)}
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }).format(total_revenue.value)}
             </div>
-            <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+            <p className="text-xs text-muted-foreground">{total_revenue.change} from last month</p>
           </CardContent>
         </Card>
         <Card>
@@ -312,12 +326,14 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {new Intl.NumberFormat("en-US", {
+              {loading ? "Loading..." : new Intl.NumberFormat("en-US", {
                 style: "currency",
                 currency: "SAR",
-              }).format(pendingRevenue)}
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }).format(pending_revenue.value)}
             </div>
-            <p className="text-xs text-muted-foreground">+12.5% from last month</p>
+            <p className="text-xs text-muted-foreground">{pending_revenue.change} from last month</p>
           </CardContent>
         </Card>
         <Card>
@@ -326,8 +342,10 @@ export default function BillingPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">18</div>
-            <p className="text-xs text-muted-foreground">+3 from last month</p>
+            <div className="text-2xl font-bold">
+              {loading ? "Loading..." : active_customers.value}
+            </div>
+            <p className="text-xs text-muted-foreground">+{active_customers.change} from last month</p>
           </CardContent>
         </Card>
       </div>

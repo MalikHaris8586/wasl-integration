@@ -24,7 +24,9 @@ export const loginUser = createAsyncThunk(
         }
       );
 
-      console.log("response", response);
+      console.log("Full API Response:", response);
+      console.log("Response data structure:", JSON.stringify(response.data, null, 2));
+      console.log("User data from API:", JSON.stringify(response.data.data.user, null, 2));
 
       return response.data;
     } catch (err: any) {

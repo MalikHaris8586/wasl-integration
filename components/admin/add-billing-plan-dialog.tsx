@@ -77,7 +77,7 @@ export function AddBillingPlanDialog({ open, onOpenChange, onSubmit }: AddBillin
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[525px] overflow-y-auto max-h-[calc(90vh-130px)] pr-2">
         <DialogHeader>
           <DialogTitle>Add New Billing Plan</DialogTitle>
           <DialogDescription>Create a new billing plan for WASL API services.</DialogDescription>

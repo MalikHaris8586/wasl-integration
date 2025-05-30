@@ -78,83 +78,65 @@ const initialState: CustomerState = {
 export const fetchCustomers = createAsyncThunk(
   "customers/fetchCustomers",
   async (page: number = 1, { getState }) => {
-    try {
-      const state = getState() as { auth: { token: string } };
-      const token = state.auth.token;
-      console.log("Fetching customers with token:", token);
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
+    const state = getState() as { auth: { token: string } };
+    const token = state.auth.token;
+    if (!token) throw new Error("No authentication token found");
 
-      const response = await axios.get(
-        `https://wasl-api.tracking.me/api/admin/user?page=${page}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
-      console.log("API Response:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("API Error:", error);
-      throw error;
-    }
+    const response = await axios.get(
+      `https://wasl-api.tracking.me/api/admin/user?page=${page}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      }
+    );
+    return response.data;
   }
 );
 
 export const fetchCustomerById = createAsyncThunk(
   "customers/fetchCustomerById",
   async (userId: number, { getState }) => {
-    try {
-      const state = getState() as { auth: { token: string } };
-      const token = state.auth.token;
-      console.log("Fetching customer with token:", token);
+    const state = getState() as { auth: { token: string } };
+    const token = state.auth.token;
+    if (!token) throw new Error("No authentication token found");
 
-      if (!token) {
-        throw new Error("No authentication token found");
+    const response = await axios.get(
+      `https://wasl-api.tracking.me/api/admin/user/${userId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
       }
-
-      const response = await axios.get(
-        `https://wasl-api.tracking.me/api/admin/user/${userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
-      console.log("Single Customer API Response:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("API Error:", error);
-      throw error;
-    }
+    );
+    return response.data;
   }
 );
 
 export const updateCustomer = createAsyncThunk(
   "customers/updateCustomer",
-  async ({ userId, data }: { userId: number; data: any }, { getState }) => {
+  async ({ userId, data }: { userId: number; data: any }, { getState, rejectWithValue }) => {
+    const state = getState() as { auth: { token: string } };
+    const token = state.auth.token;
+    if (!token) throw new Error("No authentication token found");
+
     try {
-      const state = getState() as { auth: { token: string } };
-      const token = state.auth.token;
-      console.log("Updating customer with token:", token);
+      console.log('Updating customer data:', { userId, data });
 
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-
-      // Ensure setting object exists
+      // Format the update data to match API expectations
       const updateData = {
-        ...data,
-        setting: {
-          ip: data.setting?.ip || "",
-          genesis_session_key: data.setting?.genesis_session_key || "",
-          url: data.setting?.url || "",
-        },
+        name: data.name,
+        email: data.email,
+        phone_number: data.phone_number || data.phoneNumber,
+        active: typeof data.active === 'number' ? data.active : (data.isActive ? 1 : 0),
+        genesis_session_key: data.genesis_session_key || data.setting?.genesis_session_key || data.setting?.genesisSessionKey,
+        ip_address: data.ip_address || data.setting?.ip || data.setting?.ipAddress,
+        url: data.url || data.setting?.url
       };
+
+      console.log('Sending update data:', updateData);
 
       const response = await axios.put(
         `https://wasl-api.tracking.me/api/admin/user/${userId}`,
@@ -167,30 +149,63 @@ export const updateCustomer = createAsyncThunk(
           },
         }
       );
-      console.log("Update Customer API Response:", response.data);
+
+      console.log('Update Response:', response.data);
       return response.data;
-    } catch (error) {
-      console.error("API Error:", error);
-      throw error;
+    } catch (error: any) {
+      console.error('Update Error Details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        requestData: error.config?.data
+      });
+
+      let errorMessage = "Failed to update customer";
+      
+      if (error.response?.data) {
+        const responseData = error.response.data;
+        if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.type && responseData.description) {
+          errorMessage = `${responseData.type}: ${JSON.stringify(responseData.description)}`;
+        }
+      }
+
+      return rejectWithValue({
+        message: errorMessage,
+        originalError: error.response?.data
+      });
     }
   }
 );
 
 export const createCustomer = createAsyncThunk(
   "customers/createCustomer",
-  async (data: any, { getState }) => {
-    try {
-      const state = getState() as { auth: { token: string } };
-      const token = state.auth.token;
-      console.log("Creating customer with token:", token);
+  async (data: any, { getState, rejectWithValue }) => {
+    const state = getState() as { auth: { token: string } };
+    const token = state.auth.token;
+    if (!token) throw new Error("No authentication token found");
 
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
+    try {
+      // Format data exactly as per API format
+      const customerData = {
+        name: data.name,
+        email: data.email,
+        password: "12345678",
+        password_confirmation: "12345678",
+        role: "user",
+        phone_number: data.phoneNumber || data.phone_number,
+        genesis_session_key: data.setting?.genesisSessionKey || "",
+        ip_address: data.setting?.ipAddress || "",
+        url: data.setting?.url || ""
+      };
+
+      console.log('Sending customer data:', JSON.stringify(customerData, null, 2));
 
       const response = await axios.post(
         `https://wasl-api.tracking.me/api/admin/user`,
-        data,
+        customerData,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -200,10 +215,189 @@ export const createCustomer = createAsyncThunk(
         }
       );
 
+      console.log('API Response:', response.data);
       return response.data;
     } catch (error: any) {
-      console.error("API Error:", error);
-      throw error;
+      console.error('Complete API Error:', error.response || error);
+      console.error('Request Data:', error.config?.data);
+
+      let errorMessage = 'Failed to create customer';
+      
+      if (error.response?.data) {
+        const responseData = error.response.data;
+        console.log('API Response Data:', responseData);
+        
+        if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.type && responseData.description) {
+          errorMessage = `${responseData.type}: ${JSON.stringify(responseData.description)}`;
+        }
+      }
+
+      return rejectWithValue({
+        message: errorMessage,
+        originalError: error.response?.data
+      });
+    }
+  }
+);
+
+export const deleteCustomer = createAsyncThunk(
+  "customers/deleteCustomer",
+  async (userId: number, { getState, rejectWithValue }) => {
+    const state = getState() as { auth: { token: string } };
+    const token = state.auth.token;
+    if (!token) throw new Error("No authentication token found");
+
+    try {
+      console.log('Deleting customer with ID:', userId);
+
+      const response = await axios.delete(
+        `https://wasl-api.tracking.me/api/admin/user/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log('Delete Response:', response.data);
+      return userId;
+    } catch (error: any) {
+      console.error('Delete Error Details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+
+      let errorMessage = "Failed to delete customer";
+      
+      if (error.response?.data) {
+        const responseData = error.response.data;
+        if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.type && responseData.description) {
+          errorMessage = `${responseData.type}: ${JSON.stringify(responseData.description)}`;
+        }
+      }
+
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const deleteApiAccessControl = createAsyncThunk(
+  "customers/deleteApiAccessControl",
+  async (id: number, { getState, rejectWithValue }) => {
+    const state = getState() as { auth: { token: string } };
+    const token = state.auth.token;
+    
+    if (!token) {
+      console.log('No token found in state');
+      throw new Error("No authentication token found");
+    }
+    
+    console.log('Token found:', token ? 'Yes' : 'No');
+
+    try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+      };
+
+      console.log('Making DELETE request with config:', {
+        url: `https://wasl-api.tracking.me/api/admin/api-access-controls/${id}`,
+        headers: config.headers
+      });
+
+      const response = await axios.delete(
+        `https://wasl-api.tracking.me/api/admin/api-access-controls/${id}`,
+        config
+      );
+      
+      if (response.status === 200 || response.status === 204) {
+        return id;
+      }
+      
+      throw new Error("Failed to delete API access control");
+    } catch (error: any) {
+      console.log('Delete request failed:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
+
+      if (error.response) {
+        const errorData = error.response.data;
+        let errorMessage = "Failed to delete API access control";
+
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (errorData?.message) {
+          errorMessage = typeof errorData.message === 'string' 
+            ? errorData.message 
+            : JSON.stringify(errorData.message);
+        }
+
+        return rejectWithValue(errorMessage);
+      } else if (error.request) {
+        return rejectWithValue("No response received from server");
+      } else {
+        return rejectWithValue(error.message || "Failed to delete API access control");
+      }
+    }
+  }
+);
+
+export const updateCustomerStatus = createAsyncThunk(
+  "customers/updateCustomerStatus",
+  async ({ userId, active }: { userId: number; active: number }, { getState, rejectWithValue }) => {
+    const state = getState() as { auth: { token: string } };
+    const token = state.auth.token;
+    if (!token) throw new Error("No authentication token found");
+
+    try {
+      console.log('Updating customer status:', { userId, active });
+
+      const response = await axios.put(
+        `https://wasl-api.tracking.me/api/admin/user/${userId}`,
+        { active },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log('Update Status Response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Status Error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+
+      let errorMessage = "Failed to update customer status";
+      
+      if (error.response?.data) {
+        const responseData = error.response.data;
+        if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.type && responseData.description) {
+          errorMessage = `${responseData.type}: ${JSON.stringify(responseData.description)}`;
+        }
+      }
+
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -257,13 +451,11 @@ const customerSlice = createSlice({
       })
       .addCase(updateCustomer.fulfilled, (state, action) => {
         state.loading = false;
-        // Update the customer in the list
         const updatedCustomer = action.payload.data;
         const index = state.customers.findIndex(c => c.id === updatedCustomer.id);
         if (index !== -1) {
           state.customers[index] = updatedCustomer;
         }
-        // Update selected customer if it's the same one
         if (state.selectedCustomer?.id === updatedCustomer.id) {
           state.selectedCustomer = updatedCustomer;
         }
@@ -285,6 +477,51 @@ const customerSlice = createSlice({
       .addCase(createCustomer.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to create customer";
+      })
+      .addCase(deleteCustomer.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteCustomer.fulfilled, (state, action) => {
+        state.loading = false;
+        state.customers = state.customers.filter((customer) => customer.id !== action.payload);
+        if (state.selectedCustomer?.id === action.payload) {
+          state.selectedCustomer = null;
+        }
+      })
+      .addCase(deleteCustomer.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string || "Failed to delete customer";
+      })
+      .addCase(deleteApiAccessControl.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteApiAccessControl.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(deleteApiAccessControl.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string || "Failed to delete API access control";
+      })
+      .addCase(updateCustomerStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateCustomerStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedCustomer = action.payload.data;
+        const index = state.customers.findIndex(c => c.id === updatedCustomer.id);
+        if (index !== -1) {
+          state.customers[index] = updatedCustomer;
+        }
+        if (state.selectedCustomer?.id === updatedCustomer.id) {
+          state.selectedCustomer = updatedCustomer;
+        }
+      })
+      .addCase(updateCustomerStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string || "Failed to update customer status";
       });
   },
 });
