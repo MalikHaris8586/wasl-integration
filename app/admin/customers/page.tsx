@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { fetchCustomers, fetchCustomerById, createCustomer, deleteApiAccessControl, deleteCustomer, updateCustomerStatus, updateCustomer } from '../store/slices/customerSlice'
-import { AppDispatch } from '../store/store'
+import { AppDispatch } from '../../redux/store'
 
 // Define the data type based on API response
 interface AccessControl {
@@ -339,7 +339,7 @@ export default function CustomersPage() {
       cell: ({ row }) => {
         const customer = row.original;
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-slate-800">
             <Button
               variant="ghost"
               size="icon"

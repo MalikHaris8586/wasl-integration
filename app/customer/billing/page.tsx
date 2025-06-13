@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useAppDispatch, useAppSelector } from "../../redux/reduxhook/Hook"
-import { fetchBillingUsage } from "../../redux/auth/billingSlice"
+import { fetchBillingUsage } from "../../admin/store/slices/billingSlice"
 import { Progress } from "@/components/ui/progress"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"

@@ -1,24 +1,33 @@
-import { configureStore, combineReducers } from '@reduxjs/toolkit'
-import authReducer from './auth/authSlice'
-import dashboardReducer from './auth/dashboardSlice'
-import storage from 'redux-persist/lib/storage'
-import { persistReducer, persistStore } from 'redux-persist'
-import { useDispatch } from 'react-redux'
-import apiUsageReducer from '../redux/auth/apiUsageSlice';
-import companiesReducer from "../redux/auth/companiesSlice"
-import driverReducer from "../redux/auth/driverSlice"
-import vehicleReducer from "../redux/auth/vehicleSlice"
-import billingReducer from '../redux/auth/billingSlice'
-import customerReducer from '../admin/store/slices/customerSlice'
-import apiAccessControlReducer from '../admin/store/slices/apiAccessControlSlice'
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import { persistReducer, persistStore } from 'redux-persist';
+import storage from 'redux-persist/lib/storage';
+import { useDispatch } from 'react-redux';
 
-// 👉 Config for persisting only auth slice
+// User-related reducers
+import authReducer from './auth/authSlice';
+import dashboardReducer from './auth/dashboardSlice';
+import apiUsageReducer from './auth/apiUsageSlice';
+import companiesReducer from './auth/companiesSlice';
+import driverReducer from './auth/driverSlice';
+import vehicleReducer from './auth/vehicleSlice';
+
+// Admin-related reducers
+import billingReducer from '../admin/store/slices/billingSlice';
+import customerReducer from '../admin/store/slices/customerSlice';
+import apiAccessControlReducer from '../admin/store/slices/apiAccessControlSlice';
+import admindashboardReducer from '../admin/store/slices/dashboardSlice';
+import reportReducer from '../admin/store/slices/reportSlice';
+import { paymentPlanSlice } from '../admin/store/slices/paymentPlanSlice';
+import billingReportReducer from '../admin/store/slices/billingReportSlice';
+
+// Persist config
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['auth'],
-}
+  whitelist: ['auth'], // only persist auth slice
+};
 
+// Combine all reducers
 const rootReducer = combineReducers({
   auth: authReducer,
   dashboard: dashboardReducer,
@@ -27,22 +36,35 @@ const rootReducer = combineReducers({
   driver: driverReducer,
   vehicle: vehicleReducer,
   billing: billingReducer,
+
+  // Admin reducers
   customers: customerReducer,
   apiAccessControl: apiAccessControlReducer,
-})
+  admindashboard: admindashboardReducer,
+  report: reportReducer,
+  billingPlans: paymentPlanSlice.reducer,
+  paymentPlan: paymentPlanSlice.reducer,
+  billingReport: billingReportReducer,
+});
 
-const persistedReducer = persistReducer(persistConfig, rootReducer)
+// Persisted reducer
+const persistedReducer = persistReducer(persistConfig, rootReducer);
 
+// Create store
 export const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: false, // required by redux-persist
+      serializableCheck: false, // needed for redux-persist
     }),
-})
+});
 
-export const persistor = persistStore(store)
+// Persistor for Redux Persist
+export const persistor = persistStore(store);
 
-export type RootState = ReturnType<typeof store.getState>
-export type AppDispatch = typeof store.dispatch
+// Types for hooks
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+
+// Custom dispatch hook
 export const useAppDispatch: () => AppDispatch = useDispatch;

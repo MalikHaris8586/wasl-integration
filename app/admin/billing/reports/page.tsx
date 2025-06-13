@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { CalendarIcon, Download, FileBarChart, Filter, Printer } from "lucide-react"
 import { format } from "date-fns"
-import React from "react"
+import { useDispatch, useSelector } from "react-redux"
+import axios from "axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,8 +14,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { DataTable } from "@/components/data-table"
 import type { ColumnDef } from "@tanstack/react-table"
+import { AppDispatch, RootState } from "../../store/store"
+import { fetchBillingReport } from "../../store/slices/billingReportSlice"
 
-// Define the data types
+// Types
 type RevenueReport = {
   id: string
   period: string
@@ -42,258 +45,313 @@ type CustomerReport = {
 const revenueReports: RevenueReport[] = [
   {
     id: "1",
-    period: "Jan 2023",
-    totalRevenue: 45250.75,
-    companyApiRevenue: 12500.5,
-    driverApiRevenue: 8750.25,
-    vehicleApiRevenue: 15000.0,
-    locationApiRevenue: 9000.0,
-    customerCount: 15,
-    growth: 0,
-  },
-  {
-    id: "2",
-    period: "Feb 2023",
-    totalRevenue: 48500.25,
-    companyApiRevenue: 13200.75,
-    driverApiRevenue: 9500.5,
-    vehicleApiRevenue: 16000.0,
-    locationApiRevenue: 9800.0,
-    customerCount: 16,
-    growth: 7.18,
-  },
-  {
-    id: "3",
-    period: "Mar 2023",
-    totalRevenue: 52750.5,
-    companyApiRevenue: 14500.25,
-    driverApiRevenue: 10250.0,
-    vehicleApiRevenue: 17500.25,
-    locationApiRevenue: 10500.0,
-    customerCount: 17,
-    growth: 8.76,
-  },
-  {
-    id: "4",
-    period: "Apr 2023",
-    totalRevenue: 55000.0,
-    companyApiRevenue: 15000.0,
-    driverApiRevenue: 11000.0,
-    vehicleApiRevenue: 18000.0,
-    locationApiRevenue: 11000.0,
-    customerCount: 17,
-    growth: 4.26,
-  },
-  {
-    id: "5",
-    period: "May 2023",
-    totalRevenue: 58250.25,
-    companyApiRevenue: 16000.25,
-    driverApiRevenue: 11500.0,
-    vehicleApiRevenue: 19250.0,
-    locationApiRevenue: 11500.0,
-    customerCount: 18,
-    growth: 5.91,
-  },
-  {
-    id: "6",
-    period: "Jun 2023",
-    totalRevenue: 62500.75,
-    companyApiRevenue: 17250.25,
-    driverApiRevenue: 12500.5,
-    vehicleApiRevenue: 20750.0,
-    locationApiRevenue: 12000.0,
-    customerCount: 19,
-    growth: 7.29,
+    period: "April 2024",
+    totalRevenue: 4500,
+    companyApiRevenue: 1200,
+    driverApiRevenue: 1500,
+    vehicleApiRevenue: 1300,
+    locationApiRevenue: 500,
+    customerCount: 20,
+    growth: 15,
   },
 ]
 
 const customerReports: CustomerReport[] = [
   {
     id: "1",
-    customerName: "Acme Corporation",
-    totalSpend: 12500.5,
-    companyApiCalls: 250,
-    driverApiCalls: 1250,
-    vehicleApiCalls: 850,
-    locationApiCalls: 3500,
-    planName: "Enterprise Plan",
-  },
-  {
-    id: "2",
-    customerName: "XYZ Industries",
-    totalSpend: 8750.25,
-    companyApiCalls: 175,
-    driverApiCalls: 950,
-    vehicleApiCalls: 625,
-    locationApiCalls: 2750,
-    planName: "Standard Plan",
-  },
-  {
-    id: "3",
-    customerName: "Global Logistics",
-    totalSpend: 15000.0,
+    customerName: "Company A",
+    totalSpend: 1200,
     companyApiCalls: 300,
-    driverApiCalls: 1500,
-    vehicleApiCalls: 1000,
-    locationApiCalls: 4500,
-    planName: "Enterprise Plan",
-  },
-  {
-    id: "4",
-    customerName: "Fast Transport LLC",
-    totalSpend: 6500.75,
-    companyApiCalls: 125,
-    driverApiCalls: 625,
-    vehicleApiCalls: 425,
-    locationApiCalls: 1750,
-    planName: "Basic Plan",
-  },
-  {
-    id: "5",
-    customerName: "City Movers",
-    totalSpend: 9250.25,
-    companyApiCalls: 185,
-    driverApiCalls: 925,
-    vehicleApiCalls: 625,
-    locationApiCalls: 2850,
+    driverApiCalls: 400,
+    vehicleApiCalls: 500,
+    locationApiCalls: 0,
     planName: "Standard Plan",
   },
 ]
 
 export default function BillingReportsPage() {
+  const dispatch = useDispatch<AppDispatch>()
+  const billingReport = useSelector((state: RootState) => state.billingReport)
+  const token = useSelector((state: RootState) => state.auth.token)
+  const billingData = billingReport?.data || null
+  const loading = billingReport?.loading || false
+  const error = billingReport?.error || null
+
   const [date, setDate] = useState<Date | undefined>(undefined)
-  
-  React.useEffect(() => {
-    // Set initial date on client-side only
-    setDate(new Date())
-  }, [])
+  const [reportType, setReportType] = useState("monthly")
 
-  // Define columns for the revenue reports table
+  useEffect(() => {
+    const currentDate = new Date()
+    setDate(currentDate)
+
+    const to = new Date()
+    const from = new Date()
+    from.setMonth(from.getMonth() - 1)
+
+    dispatch(fetchBillingReport({
+      filter: "last_month",
+      from: from.toISOString(),
+      to: to.toISOString()
+    }))
+  }, [dispatch])
+
+  useEffect(() => {
+    if (date) {
+      const to = new Date(date)
+      const from = new Date(date)
+
+      switch (reportType) {
+        case "monthly":
+          from.setMonth(from.getMonth() - 1)
+          break
+        case "quarterly":
+          from.setMonth(from.getMonth() - 3)
+          break
+        case "yearly":
+          from.setFullYear(from.getFullYear() - 1)
+          break
+      }
+
+      dispatch(fetchBillingReport({
+        filter: reportType,
+        from: from.toISOString(),
+        to: to.toISOString()
+      }))
+    }
+  }, [date, reportType, dispatch])
+
+  const handleExportCSV = () => {
+    try {
+      if (!revenueReports || revenueReports.length === 0) {
+        console.error('No data to export');
+        return;
+      }
+
+      // Convert data to CSV format
+      const headers = [
+        'Period',
+        'Total Revenue',
+        'Company API Revenue',
+        'Driver API Revenue',
+        'Vehicle API Revenue',
+        'Location API Revenue',
+        'Customer Count',
+        'Growth (%)'
+      ];
+
+      const csvData = [
+        headers.join(','), // Header row
+        ...revenueReports.map(row => [
+          row.period,
+          row.totalRevenue,
+          row.companyApiRevenue,
+          row.driverApiRevenue,
+          row.vehicleApiRevenue,
+          row.locationApiRevenue,
+          row.customerCount,
+          row.growth
+        ].join(','))
+      ].join('\n');
+
+      // Create and trigger download
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `revenue-report-${reportType}-${format(date || new Date(), 'yyyy-MM')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      if (!date) return;
+      
+      const to = new Date(date);
+      const from = new Date(date);
+      
+      switch (reportType) {
+        case "monthly":
+          from.setMonth(from.getMonth() - 1);
+          break;
+        case "quarterly":
+          from.setMonth(from.getMonth() - 3);
+          break;
+        case "yearly":
+          from.setFullYear(from.getFullYear() - 1);
+          break;
+      }
+
+      const response = await axios.get('https://wasl-api.tracking.me/api/admin/revenue-report-pdf', {
+        params: {
+          filter: reportType,
+          from: from.toISOString(),
+          to: to.toISOString()
+        },
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        responseType: 'blob'
+      });
+
+      // Create a download link and trigger download
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `revenue-report-${reportType}-${format(date, 'yyyy-MM')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+    }
+  };
+
+  const handleCustomerExportPDF = async () => {
+    try {
+      if (!date) return;
+      
+      const to = new Date(date);
+      const from = new Date(date);
+      
+      switch (reportType) {
+        case "monthly":
+          from.setMonth(from.getMonth() - 1);
+          break;
+        case "quarterly":
+          from.setMonth(from.getMonth() - 3);
+          break;
+        case "yearly":
+          from.setFullYear(from.getFullYear() - 1);
+          break;
+      }
+
+      const response = await axios.get('https://wasl-api.tracking.me/api/admin/billing-report-customer-export', {
+        params: {
+          filter: reportType,
+          from: from.toISOString(),
+          to: to.toISOString()
+        },
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        responseType: 'blob'
+      });
+
+      // Create a download link and trigger download
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `customer-report-${reportType}-${format(date, 'yyyy-MM')}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting customer PDF:', error);
+    }
+  };
+
+  const handleCustomerExportCSV = async () => {
+    try {
+      if (!date) return;
+      
+      const to = new Date(date);
+      const from = new Date(date);
+      
+      switch (reportType) {
+        case "monthly":
+          from.setMonth(from.getMonth() - 1);
+          break;
+        case "quarterly":
+          from.setMonth(from.getMonth() - 3);
+          break;
+        case "yearly":
+          from.setFullYear(from.getFullYear() - 1);
+          break;
+      }
+
+      const response = await axios.get('https://wasl-api.tracking.me/api/admin/billing-report-customer-excel', {
+        params: {
+          filter: reportType,
+          from: from.toISOString(),
+          to: to.toISOString()
+        },
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        responseType: 'blob'
+      });
+
+      // Create a download link and trigger download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `customer-report-${reportType}-${format(date, 'yyyy-MM')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting customer Excel:', error);
+    }
+  };
+
+  // ✅ Revenue table columns (with "period")
   const revenueColumns: ColumnDef<RevenueReport>[] = [
-    {
-      accessorKey: "period",
-      header: "Period",
-    },
-    {
-      accessorKey: "totalRevenue",
-      header: "Total Revenue",
-      cell: ({ row }) => {
-        const amount = Number.parseFloat(row.getValue("totalRevenue"))
-        const formatted = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "SAR",
-        }).format(amount)
-        return formatted
-      },
-    },
-    {
-      accessorKey: "companyApiRevenue",
-      header: "Company API",
-      cell: ({ row }) => {
-        const amount = Number.parseFloat(row.getValue("companyApiRevenue"))
-        const formatted = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "SAR",
-        }).format(amount)
-        return formatted
-      },
-    },
-    {
-      accessorKey: "driverApiRevenue",
-      header: "Driver API",
-      cell: ({ row }) => {
-        const amount = Number.parseFloat(row.getValue("driverApiRevenue"))
-        const formatted = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "SAR",
-        }).format(amount)
-        return formatted
-      },
-    },
-    {
-      accessorKey: "vehicleApiRevenue",
-      header: "Vehicle API",
-      cell: ({ row }) => {
-        const amount = Number.parseFloat(row.getValue("vehicleApiRevenue"))
-        const formatted = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "SAR",
-        }).format(amount)
-        return formatted
-      },
-    },
-    {
-      accessorKey: "locationApiRevenue",
-      header: "Location API",
-      cell: ({ row }) => {
-        const amount = Number.parseFloat(row.getValue("locationApiRevenue"))
-        const formatted = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "SAR",
-        }).format(amount)
-        return formatted
-      },
-    },
-    {
-      accessorKey: "customerCount",
-      header: "Customers",
-    },
-    {
-      accessorKey: "growth",
-      header: "Growth",
-      cell: ({ row }) => {
-        const growth = Number.parseFloat(row.getValue("growth"))
-        const formatted = `${growth.toFixed(2)}%`
-        return (
-          <div className={`${growth > 0 ? "text-green-600" : growth < 0 ? "text-red-600" : ""}`}>
-            {growth > 0 ? "+" : ""}
-            {formatted}
-          </div>
-        )
-      },
-    },
+    { accessorKey: "period", header: "Period" },
+    { accessorKey: "totalRevenue", header: "Total Revenue" },
+    { accessorKey: "companyApiRevenue", header: "Company API Revenue" },
+    { accessorKey: "driverApiRevenue", header: "Driver API Revenue" },
+    { accessorKey: "vehicleApiRevenue", header: "Vehicle API Revenue" },
+    { accessorKey: "locationApiRevenue", header: "Location API Revenue" },
+    { accessorKey: "customerCount", header: "Customers" },
+    { accessorKey: "growth", header: "Growth (%)" },
   ]
 
-  // Define columns for the customer reports table
+  // ✅ Customer table columns
   const customerColumns: ColumnDef<CustomerReport>[] = [
-    {
-      accessorKey: "customerName",
-      header: "Customer",
-    },
-    {
-      accessorKey: "planName",
-      header: "Plan",
-    },
-    {
-      accessorKey: "totalSpend",
-      header: "Total Spend",
-      cell: ({ row }) => {
-        const amount = Number.parseFloat(row.getValue("totalSpend"))
-        const formatted = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "SAR",
-        }).format(amount)
-        return formatted
-      },
-    },
-    {
-      accessorKey: "companyApiCalls",
-      header: "Company API Calls",
-    },
-    {
-      accessorKey: "driverApiCalls",
-      header: "Driver API Calls",
-    },
-    {
-      accessorKey: "vehicleApiCalls",
-      header: "Vehicle API Calls",
-    },
-    {
-      accessorKey: "locationApiCalls",
-      header: "Location API Calls",
-    },
+    { accessorKey: "customerName", header: "Customer Name" },
+    { accessorKey: "totalSpend", header: "Total Spend" },
+    { accessorKey: "companyApiCalls", header: "Company API Calls" },
+    { accessorKey: "driverApiCalls", header: "Driver API Calls" },
+    { accessorKey: "vehicleApiCalls", header: "Vehicle API Calls" },
+    { accessorKey: "locationApiCalls", header: "Location API Calls" },
+    { accessorKey: "planName", header: "Plan" },
   ]
+
+  const transformedCustomerReports = useMemo(() => {
+    if (!billingData?.users) return customerReports
+
+    return billingData.users.map((user) => ({
+      id: user.user_id?.toString() || Math.random().toString(),
+      customerName: user.user_name || "Unknown Customer",
+      totalSpend: parseFloat(user.total_spend) || 0,
+      companyApiCalls: parseInt(user.company_count) || 0,
+      driverApiCalls: parseInt(user.driver_count) || 0,
+      vehicleApiCalls: parseInt(user.vehicle_count) || 0,
+      locationApiCalls: 0,
+      planName: "Standard Plan",
+    }))
+  }, [billingData])
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">Loading reports...</div>
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64 text-red-600">
+        Error loading reports: {error.toString()}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -311,7 +369,7 @@ export default function BillingReportsPage() {
               <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
             </PopoverContent>
           </Popover>
-          <Select defaultValue="monthly">
+          <Select value={reportType} onValueChange={setReportType}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Report Type" />
             </SelectTrigger>
@@ -341,11 +399,21 @@ export default function BillingReportsPage() {
                 <CardDescription>Monthly revenue breakdown by API service</CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={handleExportCSV}
+                >
                   <Download className="h-4 w-4" />
                   Export CSV
                 </Button>
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={handleExportPDF}
+                >
                   <FileBarChart className="h-4 w-4" />
                   Export PDF
                 </Button>
@@ -373,11 +441,21 @@ export default function BillingReportsPage() {
                 <CardDescription>API usage and spending by customer</CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={handleCustomerExportCSV}
+                >
                   <Download className="h-4 w-4" />
                   Export CSV
                 </Button>
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={handleCustomerExportPDF}
+                >
                   <FileBarChart className="h-4 w-4" />
                   Export PDF
                 </Button>
@@ -390,7 +468,7 @@ export default function BillingReportsPage() {
             <CardContent>
               <DataTable
                 columns={customerColumns}
-                data={customerReports}
+                data={transformedCustomerReports}
                 searchKey="customerName"
                 searchPlaceholder="Search by customer name..."
               />

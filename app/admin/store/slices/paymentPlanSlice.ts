@@ -1,107 +1,114 @@
+// store/slices/paymentPlanSlice.ts
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { RootState } from '../store';
 
-interface Revenue {
-  value: number;
-  change: string;
-}
-
-export interface PaymentPlanState {
-  total_revenue: Revenue;
-  pending_revenue: Revenue;
-  active_customers: {
-    value: number;
-    change: number;
-  };
-  loading: boolean;
-  error: string | null;
-}
-
-const initialState: PaymentPlanState = {
-  total_revenue: {
-    value: 0,
-    change: "0%"
-  },
-  pending_revenue: {
-    value: 0,
-    change: "0%"
-  },
-  active_customers: {
-    value: 0,
-    change: 0
-  },
-  loading: false,
-  error: null
-};
-
-export const fetchPaymentPlanDashboard = createAsyncThunk(
+// Fetch Payment Plan Dashboard
+export const fetchPaymentPlanDashboard = createAsyncThunk<
+  any,
+  void,
+  { state: { auth: { token: string | null } } }
+>(
   'paymentPlan/fetchDashboard',
-  async (_, { getState }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
-      const state = getState() as RootState;
-      const token = state.auth.token;
-      console.log('token', token);
-
-      const response = await axios.get('https://wasl-api.tracking.me/api/admin/payment-plan-dashboard', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      console.log('response', response.data);
-      
-      if (!response.data) {
-        throw new Error('No data received from server');
+      const token = getState().auth.token;
+      if (!token) {
+        return rejectWithValue('No auth token found');
       }
 
-      return {
-        total_revenue: response.data.total_revenue,
-        pending_revenue: response.data.pending_revenue,
-        active_customers: response.data.active_customers
-      };
+      const response = await axios.get(
+        'https://wasl-api.tracking.me/api/admin/payment-plan-dashboard',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+        }
+      );
+
+      return response.data;
     } catch (error: any) {
-      console.error('Error fetching dashboard data:', error);
-      throw error;
+      if (error.response) {
+        return rejectWithValue(error.response.data.message || 'Server Error');
+      } else if (error.request) {
+        return rejectWithValue('No response from server');
+      } else {
+        return rejectWithValue(error.message);
+      }
     }
   }
 );
 
-const paymentPlanSlice = createSlice({
+// Fetch Billing Plans
+export const fetchBillingPlans = createAsyncThunk<
+  any[],
+  void,
+  { state: { auth: { token: string | null } } }
+>(
+  'billingPlans/fetchBillingPlans',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      if (!token) {
+        return rejectWithValue('No auth token found');
+      }
+
+      const response = await axios.get(
+        'https://wasl-api.tracking.me/api/admin/payment_plan',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+        }
+      );
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const paymentPlanSlice = createSlice({
   name: 'paymentPlan',
-  initialState,
+  initialState: {
+    dashboardData: null as any,
+    billingPlans: [] as any[],
+    loading: false,
+    error: null as string | null,
+  },
   reducers: {},
   extraReducers: (builder) => {
     builder
+      // Dashboard
       .addCase(fetchPaymentPlanDashboard.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchPaymentPlanDashboard.fulfilled, (state, action) => {
-        console.log('Updating state with:', action.payload);
         state.loading = false;
-        state.total_revenue = {
-          value: action.payload.total_revenue.value || 0,
-          change: action.payload.total_revenue.change || '0%'
-        };
-        state.pending_revenue = {
-          value: action.payload.pending_revenue.value || 0,
-          change: action.payload.pending_revenue.change || '0%'
-        };
-        state.active_customers = {
-          value: action.payload.active_customers.value || 0,
-          change: action.payload.active_customers.change || 0
-        };
+        state.dashboardData = action.payload;
       })
       .addCase(fetchPaymentPlanDashboard.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to fetch dashboard data';
-        // Reset values on error
-        state.total_revenue = initialState.total_revenue;
-        state.pending_revenue = initialState.pending_revenue;
-        state.active_customers = initialState.active_customers;
+        state.error = action.payload as string;
+        state.dashboardData = null;
+      })
+
+      // Billing Plans
+      .addCase(fetchBillingPlans.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchBillingPlans.fulfilled, (state, action) => {
+        state.loading = false;
+        state.billingPlans = action.payload;
+      })
+      .addCase(fetchBillingPlans.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
-
-export default paymentPlanSlice.reducer;
-

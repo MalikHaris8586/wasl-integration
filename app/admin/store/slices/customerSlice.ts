@@ -402,7 +402,7 @@ export const updateCustomerStatus = createAsyncThunk(
   }
 );
 
-const customerSlice = createSlice({
+const adminCustomerSlice = createSlice({
   name: "customers",
   initialState,
   reducers: {
@@ -526,5 +526,5 @@ const customerSlice = createSlice({
   },
 });
 
-export const { setToken } = customerSlice.actions;
-export default customerSlice.reducer;
+export const { setToken } = adminCustomerSlice.actions;
+export default adminCustomerSlice.reducer;
