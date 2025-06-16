@@ -68,15 +68,10 @@ export default function AdminDashboard() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <Button>Generate Report</Button>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-        </TabsList>
+      
 
         {/* Overview */}
         <TabsContent value="overview" className="space-y-4">
@@ -167,9 +162,7 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full">
-                  View API Logs
-                </Button>
+               
               </CardFooter>
             </Card>
 
@@ -219,9 +212,7 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full">
-                  View All Activity
-                </Button>
+              
               </CardFooter>
             </Card>
           </div>
@@ -288,10 +279,15 @@ interface SummaryCardProps {
 function SummaryCard({ title, value, description, icon }: SummaryCardProps) {
   return (
     <Card>
-      <CardHeader className="flex items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className="h-4 w-4 text-muted-foreground">{icon}</div>
-      </CardHeader>
+      <CardHeader className="pb-2">
+  <div className="flex items-center justify-between w-full">
+    <CardTitle className="text-sm font-medium">{title}</CardTitle>
+    <span className="text-muted-foreground h-4 w-4 flex items-center justify-center">
+      {icon}
+    </span>
+  </div>
+</CardHeader>
+
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
         <p className="text-xs text-muted-foreground">{description}</p>

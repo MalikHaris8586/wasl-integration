@@ -51,7 +51,7 @@ export const fetchCustomerDashboard = createAsyncThunk(
           },
         }
       );
-
+console.log("Customer Dashboard API Response:", response);  
       if (!response.ok) {
         throw new Error("Unauthorized or fetch failed");
       }

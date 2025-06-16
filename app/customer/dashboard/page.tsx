@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { RootState, useAppDispatch } from "../../redux/store";
 import { fetchAdminDashboard } from "../../redux/auth/dashboardSlice"; // ✅ Corrected import
 import { useState, useEffect } from "react";
-import { Building2, Car, User } from "lucide-react";
+import { Activity, Building2, Car, User } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -138,15 +138,9 @@ export default function CustomerDashboard() {
                 </p>
               </CardContent>
             </Card>
+            
           </div>
-        </TabsContent>
-
-        <TabsContent value="usage" className="space-y-4">
-          <ApiUsageTabContent />
-        </TabsContent>
-
-        <TabsContent value="activity" className="space-y-4">
-          <Card>
+          <Card >
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
               <CardDescription>
@@ -156,7 +150,63 @@ export default function CustomerDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {activities.length === 0 && (
-                  <p>No recent activities available.</p>
+                  <p>No activities found:</p>
+                )}
+                {activities.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-4">
+                    <div 
+                      className={`w-2 h-2 mt-2 rounded-full ${
+                        activity?.status === "success"
+                          ? "bg-green-500"
+                          : activity?.status === "pending"
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
+                      }`}
+                    ></div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        {activity?.action}: {activity?.customer}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity?.time}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setActiveTab("overview")}
+              >
+               View All Activity
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="usage" className="space-y-4">
+          <ApiUsageTabContent />
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4">
+          <Card >
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription>
+                Your latest WASL integration activities
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {activities.length === 0 && (
+                  <div className="flex items-start gap-4 border-b pb-4 last:border-0">
+                   <Activity className="h-5 w-5 text-gray-500"/>
+                    <p className="font-semibold">No activities found</p>
+                  </div>
                 )}
                 {activities.map((activity) => (
                   <div key={activity.id} className="flex items-start gap-4">

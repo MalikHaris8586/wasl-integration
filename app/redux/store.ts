@@ -10,7 +10,7 @@ import apiUsageReducer from './auth/apiUsageSlice';
 import companiesReducer from './auth/companiesSlice';
 import driverReducer from './auth/driverSlice';
 import vehicleReducer from './auth/vehicleSlice';
-
+import CustomerBilling from '../redux/auth/CustomerBillingSlice';
 // Admin-related reducers
 import billingReducer from '../admin/store/slices/billingSlice';
 import customerReducer from '../admin/store/slices/customerSlice';
@@ -37,7 +37,7 @@ const rootReducer = combineReducers({
   driver: driverReducer,
   vehicle: vehicleReducer,
   billing: billingReducer,
-
+  CustomerBilling: CustomerBilling,
   // Admin reducers
   customers: customerReducer,
   apiAccessControl: apiAccessControlReducer,

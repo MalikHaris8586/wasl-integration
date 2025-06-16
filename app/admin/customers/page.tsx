@@ -105,7 +105,7 @@ interface DeleteCustomerDialogProps {
 
 export default function CustomersPage() {
   const dispatch = useDispatch<AppDispatch>();
-  const { customers, loading, error, pagination, selectedCustomer } = useSelector((state: any) => state.customers);
+  const { customers, loading, error, pagination} = useSelector((state: any) => state.customers);
   const [activeTab, setActiveTab] = useState("all")
 
   // Dialog states
@@ -116,12 +116,26 @@ export default function CustomersPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
   const token = useSelector((state:any) => state.auth.token);
+// const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   useEffect(() => {
     if (token) {
       dispatch(fetchCustomers(1));
     }
   }, [dispatch, token]);
+
+  // Calculate customer stats for cards
+  const totalCustomers = customers?.length || 0;
+  const activeCustomers = customers?.filter((c: Customer) => c.active === 1).length || 0;
+  const inactiveCustomers = customers?.filter((c: Customer) => c.active === 0).length || 0;
+  const recentlyActiveCustomers = customers?.filter((c: Customer) => {
+    if (!c.last_active_at) return false;
+    const lastActive = new Date(c.last_active_at);
+    const now = new Date();
+    const diffDays = (now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays <= 7;
+  }).length || 0;
 
   // Filter customers based on active tab
   const filteredCustomers = customers?.filter((customer: Customer) => {
@@ -339,10 +353,10 @@ export default function CustomersPage() {
       cell: ({ row }) => {
         const customer = row.original;
         return (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
+          <div className="flex space-x-2">
+            <Button className="border-gray-200 "
+              variant="outline"
+              size="sm"
               onClick={async () => {
                 try {
                   await dispatch(fetchCustomerById(customer.id));
@@ -352,11 +366,12 @@ export default function CustomersPage() {
                 }
               }}
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-4 w-4 " />
             </Button>
+
             <Button
-              variant="ghost"
-              size="icon"
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setSelectedCustomerId(customer.id);
                 setIsEditOpen(true);
@@ -364,14 +379,14 @@ export default function CustomersPage() {
             >
               <Edit className="h-4 w-4" />
             </Button>
+
             <Button
-              variant="ghost"
+              variant="destructive"
               size="icon"
-              onClick={() => {
-                if (confirm('Are you sure you want to delete this customer?')) {
-                  handleDeleteCustomer(customer.id);
-                }
-              }}
+               onClick={() => {
+    setSelectedCustomer(customer); 
+    setIsDeleteOpen(true); 
+  }}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -395,6 +410,49 @@ export default function CustomersPage() {
           Add Customer
         </Button>
       </div>
+      
+ <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCustomers}</div>
+            <p className="text-xs text-muted-foreground">All registered customers</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{activeCustomers}</div>
+            <p className="text-xs text-muted-foreground">
+              {((activeCustomers / totalCustomers) * 100).toFixed(0)}% of total customers
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Inactive Customers</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{inactiveCustomers}</div>
+            <p className="text-xs text-muted-foreground">
+              {((inactiveCustomers / totalCustomers) * 100).toFixed(0)}% of total customers
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Recently Active</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{recentlyActiveCustomers}</div>
+            <p className="text-xs text-muted-foreground">Active in the last 7 days</p>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="space-y-4">
         <div className="flex justify-between">
@@ -414,36 +472,6 @@ export default function CustomersPage() {
         ) : (
           <>
             <DataTable columns={columns} data={filteredCustomers} />
-            
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between px-2">
-              <div className="text-sm text-muted-foreground">
-                Showing {pagination.from} to {pagination.to} of {pagination.total} results
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(pagination.current_page - 1)}
-                  disabled={pagination.current_page === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-                <div className="text-sm text-muted-foreground">
-                  Page {pagination.current_page} of {pagination.last_page}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(pagination.current_page + 1)}
-                  disabled={pagination.current_page === pagination.last_page}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
           </>
         )}
       </div>
@@ -470,7 +498,7 @@ export default function CustomersPage() {
             customerName={selectedCustomer.name}
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
-            onConfirm={handleDeleteCustomer}
+            onConfirm={() => handleDeleteCustomer(selectedCustomer.id)}
           />
         </>
       )}
