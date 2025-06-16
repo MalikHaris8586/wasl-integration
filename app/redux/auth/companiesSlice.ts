@@ -61,11 +61,34 @@ export const fetchCompanies = createAsyncThunk(
 // Register company
 export const registerCompany = createAsyncThunk(
   "companies/registerCompany",
-  async ({ name, token }: { name: string; token: string }, thunkAPI) => {
+  async (
+    {
+      customerName,
+      name,
+      contactPhone,
+      contactEmail,
+      identityNumber,
+      token,
+    }: {
+      customerName: string;
+      name: string;
+      contactPhone: string;
+      contactEmail: string;
+      identityNumber: string;
+      token: string;
+    },
+    thunkAPI
+  ) => {
     try {
       const res = await axios.post(
         "https://wasl-api.tracking.me/api/genesis/wasl/company",
-        { company_name: name },
+        {
+          customer_name: customerName,
+          company_name: name,
+          phone_number: contactPhone,
+          email: contactEmail,
+          identity_number: identityNumber,
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,

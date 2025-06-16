@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useAppDispatch, useAppSelector } from "../../../redux/reduxhook/Hook"
+import { fetchCompanies, registerCompany } from "../../../redux/auth/companiesSlice"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Download, Filter, Plus } from "lucide-react"
 
@@ -32,68 +34,34 @@ type Company = {
   createdAt: string
 }
 
-// Sample data
-const companies: Company[] = [
-  {
-    id: "1",
-    customerName: "Acme Corporation",
-    name: "Acme Logistics",
-    contactPhone: "+966 123456789",
-    contactEmail: "contact@acme.com",
-    identityNumber: "1234567890",
-    waslKey: "WASL-COMP-001",
-    status: "success",
-    createdAt: "2025-04-15T10:30:00Z",
-  },
-  {
-    id: "2",
-    customerName: "XYZ Industries",
-    name: "XYZ Transport",
-    contactPhone: "+966 987654321",
-    contactEmail: "info@xyz.com",
-    identityNumber: "0987654321",
-    waslKey: "WASL-COMP-002",
-    status: "success",
-    createdAt: "2025-04-16T09:15:00Z",
-  },
-  {
-    id: "3",
-    customerName: "Global Logistics",
-    name: "Global Shipping",
-    contactPhone: "+966 555555555",
-    contactEmail: "support@globallogistics.com",
-    identityNumber: "5555555555",
-    waslKey: "WASL-COMP-003",
-    status: "error",
-    createdAt: "2025-04-14T14:45:00Z",
-  },
-  {
-    id: "4",
-    customerName: "Saudi Transport",
-    name: "Saudi Freight",
-    contactPhone: "+966 111222333",
-    contactEmail: "info@sauditransport.com",
-    identityNumber: "1112223334",
-    waslKey: "WASL-COMP-004",
-    status: "success",
-    createdAt: "2025-04-13T08:20:00Z",
-  },
-  {
-    id: "5",
-    customerName: "Riyadh Movers",
-    name: "Riyadh Express",
-    contactPhone: "+966 444555666",
-    contactEmail: "contact@riyadhmovers.com",
-    identityNumber: "4445556667",
-    waslKey: "WASL-COMP-005",
-    status: "success",
-    createdAt: "2025-04-12T16:40:00Z",
-  },
-]
-
 export default function WaslCompaniesPage() {
-  const [data, setData] = useState<Company[]>(companies)
+  const dispatch = useAppDispatch()
+  const { data: companies, loading, error } = useAppSelector((state) => state.companies)
+  const token = useAppSelector((state) => state.auth.token)
   const [isRegisterOpen, setIsRegisterOpen] = useState(false)
+
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchCompanies({ token }))
+    }
+  }, [dispatch, token])
+
+  // Map API data to table format
+  const tableData = useMemo(
+    () =>
+      companies.map((c) => ({
+        id: c.id.toString(),
+        customerName: c.company_name || "-",
+        name: c.company_name || "-",
+        contactPhone: c.phone_number || "-",
+        contactEmail: c.email || "-",
+        identityNumber: c.identity_number || "-",
+        waslKey: c.waslKey || "-",
+        status: c.status === 1 ? "success" : "error",
+        createdAt: c.created_at,
+      })),
+    [companies]
+  )
 
   // Define columns for the data table
   const columns: ColumnDef<Company>[] = [
@@ -162,15 +130,17 @@ export default function WaslCompaniesPage() {
   ]
 
   const handleRegisterCompany = (company: Omit<Company, "id" | "waslKey" | "status" | "createdAt">) => {
-    const newCompany: Company = {
-      id: `comp-${Date.now()}-${data.length + 1}`,
-      ...company,
-      waslKey: `WASL-COMP-${String(data.length + 1).padStart(4, '0')}`,
-      status: "success",
-      createdAt: new Date().toISOString(),
-    }
-
-    setData((prev) => [newCompany, ...prev])
+    if (!token) return;
+    dispatch(
+      registerCompany({
+        customerName: company.customerName,
+        name: company.name,
+        contactPhone: company.contactPhone,
+        contactEmail: company.contactEmail,
+        identityNumber: company.identityNumber,
+        token,
+      })
+    )
     setIsRegisterOpen(false)
   }
 
@@ -221,10 +191,10 @@ export default function WaslCompaniesPage() {
           <CardDescription>View and manage all WASL company registrations across all customers</CardDescription>
         </CardHeader>
         <CardContent>
-          <DataTable columns={columns} data={data} searchKey="name" searchPlaceholder="Search by company name..." />
+          <DataTable columns={columns} data={tableData} searchKey="name" searchPlaceholder="Search by company name..." />
         </CardContent>
         <CardFooter className="flex justify-between">
-          <div className="text-sm text-muted-foreground">Showing {data.length} companies</div>
+          <div className="text-sm text-muted-foreground">Showing {tableData.length} companies</div>
           <div className="text-sm text-muted-foreground">
             Last updated: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
           </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { CalendarIcon, Download, FileBarChart, Filter, Printer } from "lucide-react"
 import { format } from "date-fns"
 import { useDispatch, useSelector } from "react-redux"
@@ -14,20 +14,23 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { DataTable } from "@/components/data-table"
 import type { ColumnDef } from "@tanstack/react-table"
-import { AppDispatch, RootState } from "../../store/store"
+import { AppDispatch, RootState } from "../../../redux/store"
 import { fetchBillingReport } from "../../store/slices/billingReportSlice"
+import { fetchRevenueReport, selectRevenueReport } from "../../store/slices/revenueReportSlice"
+import { useToast } from "@/hooks/use-toast"
 
 // Types
-type RevenueReport = {
-  id: string
-  period: string
-  totalRevenue: number
-  companyApiRevenue: number
-  driverApiRevenue: number
-  vehicleApiRevenue: number
-  locationApiRevenue: number
-  customerCount: number
-  growth: number
+// Fix: RevenueReport type to match API and DataTable usage
+export type RevenueReport = {
+  id: string;
+  period: string;
+  totalRevenue: string; // Accept string for SAR values
+  companyApiRevenue: string;
+  driverApiRevenue: string;
+  vehicleApiRevenue: string;
+  locationApiRevenue: string;
+  customerCount: number;
+  growth: string;
 }
 
 type CustomerReport = {
@@ -46,39 +49,32 @@ const revenueReports: RevenueReport[] = [
   {
     id: "1",
     period: "April 2024",
-    totalRevenue: 4500,
-    companyApiRevenue: 1200,
-    driverApiRevenue: 1500,
-    vehicleApiRevenue: 1300,
-    locationApiRevenue: 500,
+    totalRevenue: "4500",
+    companyApiRevenue: "1200",
+    driverApiRevenue: "1500",
+    vehicleApiRevenue: "1300",
+    locationApiRevenue: "500",
     customerCount: 20,
-    growth: 15,
-  },
-]
-
-const customerReports: CustomerReport[] = [
-  {
-    id: "1",
-    customerName: "Company A",
-    totalSpend: 1200,
-    companyApiCalls: 300,
-    driverApiCalls: 400,
-    vehicleApiCalls: 500,
-    locationApiCalls: 0,
-    planName: "Standard Plan",
+    growth: "15",
   },
 ]
 
 export default function BillingReportsPage() {
   const dispatch = useDispatch<AppDispatch>()
   const billingReport = useSelector((state: RootState) => state.billingReport)
+  const revenueReport = useSelector(selectRevenueReport);
   const token = useSelector((state: RootState) => state.auth.token)
   const billingData = billingReport?.data || null
   const loading = billingReport?.loading || false
   const error = billingReport?.error || null
+  const revenueLoading = revenueReport.loading;
+  const revenueError = revenueReport.error;
+  const revenueData = revenueReport.data;
+  const { toast } = useToast();
 
   const [date, setDate] = useState<Date | undefined>(undefined)
   const [reportType, setReportType] = useState("monthly")
+  const [activeTab, setActiveTab] = useState("revenue");
 
   useEffect(() => {
     const currentDate = new Date()
@@ -115,47 +111,44 @@ export default function BillingReportsPage() {
       dispatch(fetchBillingReport({
         filter: reportType,
         from: from.toISOString(),
-        to: to.toISOString()
-      }))
+        to: to.toISOString(),
+      }));
+      dispatch(fetchRevenueReport({
+        filter: reportType,
+        from: from.toISOString(),
+        to: to.toISOString(),
+      }));
     }
   }, [date, reportType, dispatch])
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     try {
-      if (!revenueReports || revenueReports.length === 0) {
-        console.error('No data to export');
-        return;
+      if (!date) return;
+      const to = new Date(date);
+      const from = new Date(date);
+      switch (reportType) {
+        case "monthly":
+          from.setMonth(from.getMonth() - 1);
+          break;
+        case "quarterly":
+          from.setMonth(from.getMonth() - 3);
+          break;
+        case "yearly":
+          from.setFullYear(from.getFullYear() - 1);
+          break;
       }
-
-      // Convert data to CSV format
-      const headers = [
-        'Period',
-        'Total Revenue',
-        'Company API Revenue',
-        'Driver API Revenue',
-        'Vehicle API Revenue',
-        'Location API Revenue',
-        'Customer Count',
-        'Growth (%)'
-      ];
-
-      const csvData = [
-        headers.join(','), // Header row
-        ...revenueReports.map(row => [
-          row.period,
-          row.totalRevenue,
-          row.companyApiRevenue,
-          row.driverApiRevenue,
-          row.vehicleApiRevenue,
-          row.locationApiRevenue,
-          row.customerCount,
-          row.growth
-        ].join(','))
-      ].join('\n');
-
-      // Create and trigger download
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const url = window.URL.createObjectURL(blob);
+      const response = await axios.get('https://wasl-api.tracking.me/api/admin/revenue-report-export', {
+        params: {
+          filter: reportType,
+          from: from.toISOString(),
+          to: to.toISOString(),
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `revenue-report-${reportType}-${format(date || new Date(), 'yyyy-MM')}.csv`);
@@ -171,10 +164,8 @@ export default function BillingReportsPage() {
   const handleExportPDF = async () => {
     try {
       if (!date) return;
-      
       const to = new Date(date);
       const from = new Date(date);
-      
       switch (reportType) {
         case "monthly":
           from.setMonth(from.getMonth() - 1);
@@ -186,7 +177,6 @@ export default function BillingReportsPage() {
           from.setFullYear(from.getFullYear() - 1);
           break;
       }
-
       const response = await axios.get('https://wasl-api.tracking.me/api/admin/revenue-report-pdf', {
         params: {
           filter: reportType,
@@ -198,8 +188,6 @@ export default function BillingReportsPage() {
         },
         responseType: 'blob'
       });
-
-      // Create a download link and trigger download
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
@@ -208,8 +196,17 @@ export default function BillingReportsPage() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      toast({
+        title: "PDF Exported",
+        description: "Revenue report PDF has been downloaded successfully.",
+      });
     } catch (error) {
       console.error('Error exporting PDF:', error);
+      toast({
+        title: "Export Failed",
+        description: "There was an error exporting the PDF.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -232,6 +229,16 @@ export default function BillingReportsPage() {
           break;
       }
 
+      // Log export parameters and customer data for backend debugging
+      console.log('Exporting customer PDF with params:', {
+        filter: reportType,
+        from: from.toISOString(),
+        to: to.toISOString(),
+        token
+      });
+      console.log('Customer data in table (billingData.users):', billingData?.users);
+
+      // Changed endpoint to /api/admin/billing-report-customer-export for PDF export
       const response = await axios.get('https://wasl-api.tracking.me/api/admin/billing-report-customer-export', {
         params: {
           filter: reportType,
@@ -243,6 +250,17 @@ export default function BillingReportsPage() {
         },
         responseType: 'blob'
       });
+
+      // Debug: Log response size and headers
+      console.log('PDF export response:', response);
+      if (response.data.size === 0) {
+        toast({
+          title: "No Data",
+          description: "No customer data found for the selected period.",
+          variant: "destructive"
+        });
+        return;
+      }
 
       // Create a download link and trigger download
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
@@ -261,10 +279,8 @@ export default function BillingReportsPage() {
   const handleCustomerExportCSV = async () => {
     try {
       if (!date) return;
-      
       const to = new Date(date);
       const from = new Date(date);
-      
       switch (reportType) {
         case "monthly":
           from.setMonth(from.getMonth() - 1);
@@ -276,7 +292,7 @@ export default function BillingReportsPage() {
           from.setFullYear(from.getFullYear() - 1);
           break;
       }
-
+      // Use the correct API for customer report CSV export
       const response = await axios.get('https://wasl-api.tracking.me/api/admin/billing-report-customer-excel', {
         params: {
           filter: reportType,
@@ -288,18 +304,17 @@ export default function BillingReportsPage() {
         },
         responseType: 'blob'
       });
-
-      // Create a download link and trigger download
+      // Download as CSV
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `customer-report-${reportType}-${format(date, 'yyyy-MM')}.xlsx`);
+      link.setAttribute('download', `customer-report-${reportType}-${format(date, 'yyyy-MM')}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error exporting customer Excel:', error);
+      console.error('Error exporting customer CSV:', error);
     }
   };
 
@@ -319,27 +334,79 @@ export default function BillingReportsPage() {
   const customerColumns: ColumnDef<CustomerReport>[] = [
     { accessorKey: "customerName", header: "Customer Name" },
     { accessorKey: "totalSpend", header: "Total Spend" },
-    { accessorKey: "companyApiCalls", header: "Company API Calls" },
-    { accessorKey: "driverApiCalls", header: "Driver API Calls" },
-    { accessorKey: "vehicleApiCalls", header: "Vehicle API Calls" },
-    { accessorKey: "locationApiCalls", header: "Location API Calls" },
+    { accessorKey: "companyApiCalls", header: "Company Count" },
+    { accessorKey: "driverApiCalls", header: "Driver Count" },
+    { accessorKey: "vehicleApiCalls", header: "Vehicle Count" },
     { accessorKey: "planName", header: "Plan" },
-  ]
+  ];
 
+  // Transform billingData.users to match the columns
   const transformedCustomerReports = useMemo(() => {
-    if (!billingData?.users) return customerReports
-
-    return billingData.users.map((user) => ({
+    if (!billingData?.users) return [];
+    return billingData.users.map((user: any) => ({
       id: user.user_id?.toString() || Math.random().toString(),
       customerName: user.user_name || "Unknown Customer",
       totalSpend: parseFloat(user.total_spend) || 0,
       companyApiCalls: parseInt(user.company_count) || 0,
       driverApiCalls: parseInt(user.driver_count) || 0,
       vehicleApiCalls: parseInt(user.vehicle_count) || 0,
-      locationApiCalls: 0,
       planName: "Standard Plan",
-    }))
-  }, [billingData])
+    }));
+  }, [billingData]);
+
+  // Transform API revenue data for DataTable
+  const transformedRevenueReports = useMemo(() => {
+    if (!revenueData || revenueData.length === 0) return [];
+    return revenueData.map((item, idx) => ({
+      id: idx.toString(),
+      period: item.Period,
+      totalRevenue: item["Total Revenue"],
+      companyApiRevenue: item["Company API Revenue"] ?? "SAR 0.00",
+      driverApiRevenue: item["Driver API Revenue"] ?? "SAR 0.00",
+      vehicleApiRevenue: item["Vehicle API Revenue"] ?? "SAR 0.00",
+      locationApiRevenue: item["Location API Revenue"] ?? "SAR 0.00",
+      customerCount: item.Customers,
+      growth: item.Growth,
+    }));
+  }, [revenueData])
+
+  // Helper to fetch customer report if needed
+  const fetchCustomerIfNeeded = useCallback(() => {
+    if (!billingData?.users || billingData.users.length === 0) {
+      const to = date ? new Date(date) : new Date();
+      const from = new Date(to);
+      switch (reportType) {
+        case "monthly":
+          from.setMonth(from.getMonth() - 1);
+          break;
+        case "quarterly":
+          from.setMonth(from.getMonth() - 3);
+          break;
+        case "yearly":
+          from.setFullYear(from.getFullYear() - 1);
+          break;
+      }
+      dispatch(fetchBillingReport({
+        filter: reportType,
+        from: from.toISOString(),
+        to: to.toISOString(),
+      }));
+    }
+  }, [billingData, date, reportType, dispatch]);
+
+  // Refetch customer report when switching to customer tab
+  useEffect(() => {
+    if (activeTab === "customer") {
+      fetchCustomerIfNeeded();
+    }
+  }, [activeTab, fetchCustomerIfNeeded]);
+
+  if (revenueLoading) {
+    return <div className="flex justify-center items-center h-64">Loading revenue reports...</div>;
+  }
+  if (revenueError) {
+    return <div className="flex justify-center items-center h-64 text-red-600">Error loading revenue reports: {revenueError}</div>;
+  }
 
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading reports...</div>
@@ -386,7 +453,7 @@ export default function BillingReportsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="revenue" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="revenue">Revenue Reports</TabsTrigger>
           <TabsTrigger value="customer">Customer Reports</TabsTrigger>
@@ -426,7 +493,7 @@ export default function BillingReportsPage() {
             <CardContent>
               <DataTable
                 columns={revenueColumns}
-                data={revenueReports}
+                data={transformedRevenueReports}
                 searchKey="period"
                 searchPlaceholder="Search by period..."
               />

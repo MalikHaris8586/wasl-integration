@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import type { RootState } from '../../../redux/store'; // Adjust the import path as necessary
+import type { RootState } from '../../../redux/store'; 
 
 interface User {
   user_id: number;
@@ -48,6 +48,7 @@ export const fetchBillingReport = createAsyncThunk(
           }
         }
       );
+      console.log('Billing Report Response:', response.data);
       return response.data;
     } catch (err: any) {
       if (err.response?.status === 401) {

@@ -2,13 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CreditCard, DollarSign, Plus, Users } from "lucide-react";
+import { CreditCard, DollarSign, Plus, Users, Download } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../redux/store";
 import {
   fetchPaymentPlanDashboard,
   fetchBillingPlans,
+  updateBillingPlan,
+  createBillingPlan, // <-- import the thunk
+  deleteBillingPlan, // <-- import the thunk
+  fetchInvoices,
 } from "../../admin/store/slices/paymentPlanSlice";
+import type { BillingPlan } from "../../admin/types/billingPlan";
+import axios from "axios";
 
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -17,42 +23,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddBillingPlanDialog } from "@/components/admin/add-billing-plan-dialog";
 import { EditBillingPlanDialog } from "@/components/admin/edit-billing-plan-dialog";
 import { DeleteBillingPlanDialog } from "@/components/admin/delete-billing-plan-dialog";
-
-type BillingPlan = {
-  id: string;
-  name: string;
-  description: string;
-  companyApiPrice: number;
-  driverApiPrice: number;
-  vehicleApiPrice: number;
-  locationApiPrice: number;
-  isActive: boolean;
-};
-
-type Invoice = {
-  id: string;
-  customerName: string;
-  invoiceNumber: string;
-  date: string;
-  amount: number;
-  status: "paid" | "pending" | "overdue";
-};
-
-const invoices: Invoice[] = [
-  {
-    id: "1",
-    customerName: "ABC Corp",
-    invoiceNumber: "INV-001",
-    date: "2025-05-01",
-    amount: 1200,
-    status: "paid",
-  },
-];
+import { InvoiceGenerator } from "@/components/admin/invoice-generator";
 
 export default function BillingPage() {
   const dispatch = useDispatch<AppDispatch>();
   const token = useSelector((state: RootState) => state.auth.token);
-  const { dashboardData, billingPlans, loading } = useSelector(
+  const { dashboardData, billingPlans, loading, invoices, invoicesPaging } = useSelector(
     (state: RootState) => state.paymentPlan
   );
 
@@ -60,6 +36,7 @@ export default function BillingPage() {
     if (token) {
       dispatch(fetchPaymentPlanDashboard());
       dispatch(fetchBillingPlans());
+      dispatch(fetchInvoices({ page: 1 })); // fetch first page of invoices
     }
   }, [dispatch, token]);
 
@@ -78,6 +55,7 @@ export default function BillingPage() {
   const [isAddPlanOpen, setIsAddPlanOpen] = useState(false);
   const [editPlan, setEditPlan] = useState<BillingPlan | null>(null);
   const [deletePlan, setDeletePlan] = useState<BillingPlan | null>(null);
+  const [showInvoiceGenerator, setShowInvoiceGenerator] = useState(false);
 
   const handleAddPlan = async (values: {
     name: string;
@@ -88,61 +66,130 @@ export default function BillingPage() {
     locationApiCount: number;
     totalPrice: number;
   }) => {
-    // Submit logic here
+    // Map frontend fields to API fields
+    const payload = {
+      name: values.name,
+      description: values.description,
+      company_calls: values.companyApiCount,
+      driver_calls: values.driverApiCount,
+      vehicle_calls: values.vehicleApiCount,
+      location_calls: values.locationApiCount,
+      price: Number(values.totalPrice), // ensure price is a number
+    };
+    await dispatch(createBillingPlan(payload));
+    // Refresh billing plans after add
+    dispatch(fetchBillingPlans());
     setIsAddPlanOpen(false);
   };
 
   const handleEditPlan = (plan: BillingPlan) => setEditPlan(plan);
   const handleDeletePlan = (plan: BillingPlan) => setDeletePlan(plan);
 
-  const handleEditPlanSubmit = (updatedPlan: BillingPlan) => {
-    // TODO: Dispatch update action here
+  const handleEditPlanSubmit = async (updatedPlan: BillingPlan) => {
+    if (updatedPlan && updatedPlan.id) {
+      const payload = {
+        name: updatedPlan.name,
+        description: updatedPlan.description,
+        company_calls: updatedPlan.companyApiPrice,
+        driver_calls: updatedPlan.driverApiPrice,
+        vehicle_calls: updatedPlan.vehicleApiPrice,
+        location_calls: updatedPlan.locationApiPrice,
+        isActive: updatedPlan.isActive ?? true,
+      };
+      console.log('Update Billing Plan Payload:', payload);
+      await dispatch(updateBillingPlan({ id: updatedPlan.id, data: payload }));
+      // Refresh billing plans after update
+      dispatch(fetchBillingPlans());
+    }
     setEditPlan(null);
   };
-  const handleDeletePlanSubmit = (plan: BillingPlan) => {
-    // TODO: Dispatch delete action here
+  const handleDeletePlanSubmit = async (plan: BillingPlan) => {
+    if (plan && plan.id) {
+      await dispatch(deleteBillingPlan(plan.id));
+      dispatch(fetchBillingPlans()); // Refresh after delete
+    }
     setDeletePlan(null);
   };
 
+  // Export Invoices Handler
+  const handleExportInvoices = async () => {
+    try {
+      if (!token) return;
+      const response = await axios.get(
+        "https://wasl-api.tracking.me/api/invoice-export",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          responseType: "blob",
+        }
+      );
+      // Download file
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `invoices-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert("Failed to export invoices");
+    }
+  };
+
+  // Invoice columns for API data
+  const invoiceColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: "invoice_number",
+      header: () => "Invoice #",
+    },
+    {
+      accessorKey: "user.name",
+      header: () => "Customer",
+      cell: (info) => info.row.original.user?.name || "-",
+    },
+    {
+      accessorKey: "invoice_date",
+      header: () => "Date",
+      cell: (info) => info.row.original.invoice_date ? new Date(info.row.original.invoice_date).toLocaleDateString() : "-",
+    },
+    {
+      accessorKey: "total",
+      header: () => "Amount",
+      cell: (info) =>
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "SAR",
+        }).format(Number(info.row.original.total) || 0),
+    },
+    {
+      accessorKey: "invoice_status",
+      header: () => "Status",
+      cell: (info) => info.row.original.invoice_status,
+    },
+  ];
+
+  // Billing Plan columns for DataTable
   const planColumns: ColumnDef<BillingPlan>[] = [
     { accessorKey: "name", header: "Plan Name" },
     { accessorKey: "description", header: "Description" },
     {
-      accessorKey: "companyApiPrice",
-      header: "Company API Price",
-      cell: ({ row }) =>
+      accessorKey: "price",
+      header: () => "Price",
+      cell: (info) =>
         new Intl.NumberFormat("en-US", {
           style: "currency",
           currency: "SAR",
-        }).format(parseFloat(row.getValue("companyApiPrice"))),
+        }).format(Number(info.row.original.companyApiPrice + info.row.original.driverApiPrice + info.row.original.vehicleApiPrice + (info.row.original.locationApiPrice || 0)) || 0),
     },
-    {
-      accessorKey: "driverApiPrice",
-      header: "Driver API Price",
-      cell: ({ row }) =>
-        new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "SAR",
-        }).format(parseFloat(row.getValue("driverApiPrice"))),
-    },
-    {
-      accessorKey: "vehicleApiPrice",
-      header: "Vehicle API Price",
-      cell: ({ row }) =>
-        new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "SAR",
-        }).format(parseFloat(row.getValue("vehicleApiPrice"))),
-    },
-    {
-      accessorKey: "locationApiPrice",
-      header: "Location API Price",
-      cell: ({ row }) =>
-        new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "SAR",
-        }).format(parseFloat(row.getValue("locationApiPrice"))),
-    },
+    { accessorKey: "companyApiPrice", header: "Company" },
+    { accessorKey: "driverApiPrice", header: "Driver" },
+    { accessorKey: "vehicleApiPrice", header: "Vehicle" },
+    // { accessorKey: "locationApiPrice", header: "Location" },
+   
     {
       id: "actions",
       header: "Actions",
@@ -165,22 +212,6 @@ export default function BillingPage() {
         </div>
       ),
     },
-  ];
-
-  const invoiceColumns: ColumnDef<Invoice>[] = [
-    { accessorKey: "invoiceNumber", header: "Invoice #" },
-    { accessorKey: "customerName", header: "Customer" },
-    { accessorKey: "date", header: "Date" },
-    {
-      accessorKey: "amount",
-      header: "Amount",
-      cell: ({ row }) =>
-        new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "SAR",
-        }).format(row.getValue("amount")),
-    },
-    { accessorKey: "status", header: "Status" },
   ];
 
   return (
@@ -259,7 +290,10 @@ export default function BillingPage() {
           {loading ? (
             <p>Loading...</p>
           ) : (
-            <DataTable columns={planColumns} data={billingPlans} />
+            <>
+              <DataTable columns={planColumns} data={billingPlans} />
+              {/* Dashboard summary row below the table */}
+            </>
           )}
           <EditBillingPlanDialog
             open={!!editPlan}
@@ -280,8 +314,20 @@ export default function BillingPage() {
         </TabsContent>
 
         <TabsContent value="invoices" className="space-y-4">
+          
           <DataTable columns={invoiceColumns} data={invoices} />
+          <div className="flex justify-between mb-2">
+            <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={handleExportInvoices}>
+              <Download className="h-4 w-4" /> Export Invoices
+            </Button>
+            <Button variant="default" size="sm" className="flex items-center gap-1" onClick={() => {
+              window.location.href = "/admin/billing/settings?tab=invoice-generator";
+            }}>
+              <Plus className="h-4 w-4" /> Generate New Invoice
+            </Button>
+          </div>
         </TabsContent>
+
       </Tabs>
 
       <AddBillingPlanDialog

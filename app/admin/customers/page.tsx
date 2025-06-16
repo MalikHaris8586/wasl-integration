@@ -339,7 +339,7 @@ export default function CustomersPage() {
       cell: ({ row }) => {
         const customer = row.original;
         return (
-          <div className="flex items-center gap-2 bg-slate-800">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"

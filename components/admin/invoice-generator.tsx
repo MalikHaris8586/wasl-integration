@@ -1,11 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useFieldArray } from "react-hook-form"
 import * as z from "zod"
 import { CalendarIcon, Check, FileText, Plus, Trash } from "lucide-react"
 import { format } from "date-fns"
+import { useDispatch } from "react-redux";
+import { AppDispatch } from "../../../wasl-integration/app/redux/store";
+import { fetchInvoices } from "../../../wasl-integration/app/admin/store/slices/paymentPlanSlice";
+import { useSelector } from "react-redux";
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,18 +45,54 @@ const invoiceFormSchema = z.object({
 
 type InvoiceFormValues = z.infer<typeof invoiceFormSchema>
 
-// Sample customer data
-const customers = [
-  { id: "1", name: "Acme Corporation" },
-  { id: "2", name: "XYZ Industries" },
-  { id: "3", name: "Global Logistics" },
-  { id: "4", name: "Fast Transport LLC" },
-  { id: "5", name: "City Movers" },
-]
-
-export function InvoiceGenerator() {
+export function InvoiceGenerator({ onSuccess }: { onSuccess?: () => void }) {
   const [isPending, setIsPending] = useState(false)
+  const [customers, setCustomers] = useState<{ id: string; name: string }[]>([])
   const { toast } = useToast()
+  const dispatch = useDispatch<AppDispatch>();
+  const token = useSelector((state: any) => state.auth.token);
+
+  useEffect(() => {
+    async function fetchCustomers() {
+      try {
+        const res = await fetch("https://wasl-api.tracking.me/api/admin/user", {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Accept": "application/json",
+          },
+        });
+        if (!res.ok) throw new Error("Failed to fetch customers");
+        const data = await res.json();
+        // Debug: log the API response to check structure
+        console.log('Customer API response:', data);
+        // Try to find the correct array of customers
+        let customerArr = [];
+        if (Array.isArray(data)) {
+          customerArr = data;
+        } else if (Array.isArray(data?.data)) {
+          customerArr = data.data;
+        } else if (Array.isArray(data?.customers)) {
+          customerArr = data.customers;
+        }
+        setCustomers(
+          customerArr.map((c: any) => ({
+            id: String(c.id),
+            name:
+              c.name ||
+              c.fullName ||
+              c.company_name ||
+              c.title ||
+              c.username ||
+              c.email ||
+              JSON.stringify(c) // fallback: show the whole object if no name
+          }))
+        );
+      } catch (e) {
+        setCustomers([]);
+      }
+    }
+    if (token) fetchCustomers();
+  }, [token]);
 
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
@@ -71,16 +111,46 @@ export function InvoiceGenerator() {
   })
 
   const onSubmit = async (values: InvoiceFormValues) => {
-    setIsPending(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    console.log(values)
-    setIsPending(false)
-
-    toast({
-      title: "Invoice generated",
-      description: "The invoice has been generated successfully.",
-    })
+    setIsPending(true);
+    try {
+      // Prepare items array for API (convert unitPrice to unit_price)
+      const items = values.items.map(item => ({
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+      }));
+      // Map form values to API payload
+      const payload = {
+        user_id: Number(values.customerId),
+        invoice_date: values.invoiceDate.toISOString().slice(0, 10),
+        invoice_due_date: values.dueDate.toISOString().slice(0, 10),
+        items, // send items array as required by backend
+        subtotal: items.reduce((total, item) => total + item.quantity * item.unit_price, 0),
+        vat: Math.round(items.reduce((total, item) => total + item.quantity * item.unit_price, 0) * 0.15),
+        total: Math.round(items.reduce((total, item) => total + item.quantity * item.unit_price, 0) * 1.15),
+        notes: values.notes,
+        invoice_status: "pending",
+      };
+      await fetch("https://wasl-api.tracking.me/api/admin/invoices", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      console.log("Invoice payload:", payload); // Debug: log the payload being sent
+      toast({
+        title: "Invoice generated",
+        description: "The invoice has been generated successfully.",
+      });
+      if (onSuccess) onSuccess();
+      dispatch(fetchInvoices({ page: 1 }));
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to generate invoice." });
+    }
+    setIsPending(false);
   }
 
   // Calculate subtotal
@@ -96,6 +166,31 @@ export function InvoiceGenerator() {
 
   // Calculate total
   const total = subtotal + tax
+
+  // CustomDropdown component for customer selection
+  function CustomDropdown({ value, onChange, options, error }: {
+    value: string;
+    onChange: (val: string) => void;
+    options: { id: string; name: string }[];
+    error?: string;
+  }) {
+    return (
+      <div>
+        <label className="block text-sm font-medium mb-1">Customer</label>
+        <select
+          className={`w-full border rounded px-3 py-2  ${error ? 'border-red-500' : 'border-gray-300'}`}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+        >
+          <option value="">Select a customer</option>
+          {options.map(opt => (
+            <option key={opt.id} value={opt.id}>{opt.name}</option>
+          ))}
+        </select>
+        {error && <div className="text-red-500 text-xs mt-1">{error}</div>}
+      </div>
+    );
+  }
 
   return (
     <Card>
@@ -113,25 +208,13 @@ export function InvoiceGenerator() {
               <FormField
                 control={form.control}
                 name="customerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a customer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+                render={({ field, fieldState }) => (
+                  <CustomDropdown
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={customers}
+                    error={fieldState.error?.message}
+                  />
                 )}
               />
               <div className="grid gap-4 md:grid-cols-2">

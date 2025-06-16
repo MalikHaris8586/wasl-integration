@@ -19,6 +19,7 @@ import admindashboardReducer from '../admin/store/slices/dashboardSlice';
 import reportReducer from '../admin/store/slices/reportSlice';
 import { paymentPlanSlice } from '../admin/store/slices/paymentPlanSlice';
 import billingReportReducer from '../admin/store/slices/billingReportSlice';
+import revenueReportReducer from '../admin/store/slices/revenueReportSlice';
 
 // Persist config
 const persistConfig = {
@@ -45,6 +46,7 @@ const rootReducer = combineReducers({
   billingPlans: paymentPlanSlice.reducer,
   paymentPlan: paymentPlanSlice.reducer,
   billingReport: billingReportReducer,
+  revenueReport: revenueReportReducer,
 });
 
 // Persisted reducer
