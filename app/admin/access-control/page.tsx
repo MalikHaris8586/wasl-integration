@@ -136,20 +136,19 @@ export default function AccessControlPage() {
       cell: ({ row }) => {
         const user = row.original
         const companyControl = user.access_control.find(ac => ac.api_name === "company")
-        if (!companyControl) return "No limit set"
-        
-        const percentage = (companyControl.used_calls / companyControl.allowed_calls) * 100
+        const used = companyControl ? companyControl.used_calls : 0;
+        const allowed = companyControl ? companyControl.allowed_calls : 0;
+        const percentage = allowed > 0 ? (used / allowed) * 100 : 0;
         return (
           <div className="flex items-center gap-2">
             <span>
-              {companyControl.used_calls}/{companyControl.allowed_calls}
+              {used}/{allowed}
             </span>
             <div className="w-24">
-              
               <Progress
                 value={percentage}
                 className="h-2"
-                indicatorClassName={percentage > 90 ? "bg-red-500" : percentage > 75 ? "bg-yellow-500" : undefined}
+                indicatorClassName={allowed === 0 ? "bg-gray-300" : percentage > 90 ? "bg-red-500" : percentage > 75 ? "bg-yellow-500" : undefined}
               />
             </div>
           </div>
@@ -162,19 +161,19 @@ export default function AccessControlPage() {
       cell: ({ row }) => {
         const user = row.original
         const driverControl = user.access_control.find(ac => ac.api_name === "driver")
-        if (!driverControl) return "No limit set"
-        
-        const percentage = (driverControl.used_calls / driverControl.allowed_calls) * 100
+        const used = driverControl ? driverControl.used_calls : 0;
+        const allowed = driverControl ? driverControl.allowed_calls : 0;
+        const percentage = allowed > 0 ? (used / allowed) * 100 : 0;
         return (
           <div className="flex items-center gap-2">
             <span>
-              {driverControl.used_calls}/{driverControl.allowed_calls}
+              {used}/{allowed}
             </span>
             <div className="w-24">
               <Progress
                 value={percentage}
                 className="h-2"
-                indicatorClassName={percentage > 90 ? "bg-red-500" : percentage > 75 ? "bg-yellow-500" : undefined}
+                indicatorClassName={allowed === 0 ? "bg-gray-300" : percentage > 90 ? "bg-red-500" : percentage > 75 ? "bg-yellow-500" : undefined}
               />
             </div>
           </div>
@@ -187,19 +186,19 @@ export default function AccessControlPage() {
       cell: ({ row }) => {
         const user = row.original
         const vehicleControl = user.access_control.find(ac => ac.api_name === "vehicle")
-        if (!vehicleControl) return "No limit set"
-        
-        const percentage = (vehicleControl.used_calls / vehicleControl.allowed_calls) * 100
+        const used = vehicleControl ? vehicleControl.used_calls : 0;
+        const allowed = vehicleControl ? vehicleControl.allowed_calls : 0;
+        const percentage = allowed > 0 ? (used / allowed) * 100 : 0;
         return (
           <div className="flex items-center gap-2">
             <span>
-              {vehicleControl.used_calls}/{vehicleControl.allowed_calls}
+              {used}/{allowed}
             </span>
             <div className="w-24">
               <Progress
                 value={percentage}
                 className="h-2"
-                indicatorClassName={percentage > 90 ? "bg-red-500" : percentage > 75 ? "bg-yellow-500" : undefined}
+                indicatorClassName={allowed === 0 ? "bg-gray-300" : percentage > 90 ? "bg-red-500" : percentage > 75 ? "bg-yellow-500" : undefined}
               />
             </div>
           </div>

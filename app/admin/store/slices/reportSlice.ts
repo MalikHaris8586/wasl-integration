@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { RootState } from '../store';
+import { RootState } from '../../../redux/store';
 import { createSelector } from '@reduxjs/toolkit';
 import { CompanyReport, DriverReport, VehicleReport } from '../../types/report';
 
@@ -379,6 +379,8 @@ const reportSlice = createSlice({
       })
       .addCase(fetchDetailReport.fulfilled, (state, action) => {
         state.loading = false;
+        // Debug log for raw API response
+        if (typeof window !== 'undefined') console.log('API detailReport payload:', action.payload);
         state.detailReport = {
           filter: action.payload.filter,
           from: action.payload.from,
@@ -520,6 +522,9 @@ export const selectDetailReport = createSelector(
   [(state: RootState) => state.report?.detailReport],
   (detailReport): DetailReport | null => {
     if (!detailReport) return null;
+    // Debug log for raw customers data
+    // @ts-ignore
+    if (typeof window !== 'undefined') console.log('Raw customers:', detailReport.customers);
     return {
       filter: detailReport.filter,
       from: detailReport.from,
@@ -531,17 +536,17 @@ export const selectDetailReport = createSelector(
         company: { used: 0, allowed: 0, remaining: 0 },
         vehicle: { used: 0, allowed: 0, remaining: 0 }
       },
-      customers: detailReport.customers?.map((customer: Customer) => ({
-        id: customer.id,
-        customerName: customer.customerName,
+      customers: detailReport.customers?.map((customer: any) => ({
+        id: customer.id || customer.customer_id || '',
+        customerName: customer.customerName || customer.customer_name || '',
         status: customer.status,
-        companiesLimit: customer.companiesLimit || 0,
-        driversLimit: customer.driversLimit || 0,
-        vehiclesLimit: customer.vehiclesLimit || 0,
-        companiesUsed: customer.companiesUsed || 0,
-        driversUsed: customer.driversUsed || 0,
-        vehiclesUsed: customer.vehiclesUsed || 0,
-        lastUpdated: customer.lastUpdated
+        companiesLimit: customer.companiesLimit ?? customer.companies_limit ?? 0,
+        driversLimit: customer.driversLimit ?? customer.drivers_limit ?? 0,
+        vehiclesLimit: customer.vehiclesLimit ?? customer.vehicles_limit ?? 0,
+        companiesUsed: customer.companiesUsed ?? customer.companies_used ?? 0,
+        driversUsed: customer.driversUsed ?? customer.drivers_used ?? 0,
+        vehiclesUsed: customer.vehiclesUsed ?? customer.vehicles_used ?? 0,
+        lastUpdated: customer.lastUpdated || customer.last_updated || ''
       })) || []
     };
   }

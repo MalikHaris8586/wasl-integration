@@ -32,20 +32,20 @@ export default function AdminLayout({
           <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b px-6 bg-white dark:bg-slate-950 shadow-sm">
             <div className="flex items-center gap-4">
               <h1 className="text-lg font-medium">Admin Portal</h1>
-              <div className="hidden md:flex items-center gap-2 rounded-md border px-2 focus-within:ring-1 focus-within:ring-ring">
+              {/* <div className="hidden md:flex items-center gap-2 rounded-md border px-2 focus-within:ring-1 focus-within:ring-ring">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
                   placeholder="Search..."
                   className="h-9 w-[200px] md:w-[300px] border-0 focus-visible:ring-0 focus-visible:ring-transparent"
                 />
-              </div>
+              </div> */}
             </div>
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="relative">
+              {/* <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
-              </Button>
+              </Button> */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2">
@@ -59,8 +59,8 @@ export default function AdminLayout({
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
+                  {/* <DropdownMenuItem>Profile</DropdownMenuItem> */}
+                  {/* <DropdownMenuItem>Settings</DropdownMenuItem> */}
                   <DropdownMenuItem>Billing</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>Log out</DropdownMenuItem>

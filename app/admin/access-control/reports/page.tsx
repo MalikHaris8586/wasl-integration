@@ -113,6 +113,11 @@ export default function AccessControlReportsPage() {
     console.log('Chart Data:', chartData);
   }, [summary, api_calls, overviewData, chartData]);
 
+  // Add debug log for detailReport
+  useEffect(() => {
+    console.log('Detail Report:', detailReport);
+  }, [detailReport]);
+
   const toggleRow = (id: string) => {
     setExpandedRows(prev =>
       prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
@@ -135,9 +140,7 @@ export default function AccessControlReportsPage() {
               <SelectItem value="last_year">Last Year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
-            <Printer className="mr-2 h-4 w-4" /> Print
-          </Button>
+         
           <Button variant="outline">
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
@@ -562,6 +565,12 @@ export default function AccessControlReportsPage() {
               <CardDescription>Comprehensive report of all access control limits and usage</CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Show fallback if no customers */}
+              {(!detailReport?.customers || detailReport.customers.length === 0) ? (
+                <div className="flex h-[200px] items-center justify-center">
+                  <p className="text-muted-foreground">No data available for the selected timeframe</p>
+                </div>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -652,90 +661,13 @@ export default function AccessControlReportsPage() {
                                 </TabsList>
                                 <TabsContent value="companies">
                                   <div className="space-y-4">
-                                    <div className="grid gap-4 grid-cols-3">
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle>Total Companies</CardTitle>
-                                          <CardDescription>{item.companiesUsed} of {item.companiesLimit}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                          <Progress value={(item.companiesUsed / item.companiesLimit) * 100} className="h-2" />
-                                        </CardContent>
-                                      </Card>
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle>Available Slots</CardTitle>
-                                          <CardDescription>{item.companiesLimit - item.companiesUsed} remaining</CardDescription>
-                                        </CardHeader>
-                                      </Card>
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle>Usage Status</CardTitle>
-                                          <CardDescription>
-                                            {Math.round((item.companiesUsed / item.companiesLimit) * 100)}% utilized
-                                          </CardDescription>
-                                        </CardHeader>
-                                      </Card>
-                                    </div>
                                   </div>
                                 </TabsContent>
                                 <TabsContent value="drivers">
                                   <div className="space-y-4">
-                                    <div className="grid gap-4 grid-cols-3">
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle>Total Drivers</CardTitle>
-                                          <CardDescription>{item.driversUsed} of {item.driversLimit}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                          <Progress value={(item.driversUsed / item.driversLimit) * 100} className="h-2" />
-                                        </CardContent>
-                                      </Card>
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle>Available Slots</CardTitle>
-                                          <CardDescription>{item.driversLimit - item.driversUsed} remaining</CardDescription>
-                                        </CardHeader>
-                                      </Card>
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle>Usage Status</CardTitle>
-                                          <CardDescription>
-                                            {Math.round((item.driversUsed / item.driversLimit) * 100)}% utilized
-                                          </CardDescription>
-                                        </CardHeader>
-                                      </Card>
-                                    </div>
                                   </div>
                                 </TabsContent>
                                 <TabsContent value="vehicles">
-                                  <div className="space-y-4">
-                                    <div className="grid gap-4 grid-cols-3">
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle>Total Vehicles</CardTitle>
-                                          <CardDescription>{item.vehiclesUsed} of {item.vehiclesLimit}</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                          <Progress value={(item.vehiclesUsed / item.vehiclesLimit) * 100} className="h-2" />
-                                        </CardContent>
-                                      </Card>
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle>Available Slots</CardTitle>
-                                          <CardDescription>{item.vehiclesLimit - item.vehiclesUsed} remaining</CardDescription>
-                                        </CardHeader>
-                                      </Card>
-                                      <Card>
-                                        <CardHeader>
-                                          <CardTitle>Usage Status</CardTitle>
-                                          <CardDescription>
-                                            {Math.round((item.vehiclesUsed / item.vehiclesLimit) * 100)}% utilized
-                                          </CardDescription>
-                                        </CardHeader>
-                                      </Card>
-                                    </div>
-                                  </div>
                                 </TabsContent>
                               </Tabs>
                             </div>
@@ -746,6 +678,7 @@ export default function AccessControlReportsPage() {
                   ))}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
