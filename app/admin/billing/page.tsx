@@ -32,13 +32,15 @@ export default function BillingPage() {
     (state: RootState) => state.paymentPlan
   );
 
+  const [invoicePage, setInvoicePage] = useState(1);
+
   useEffect(() => {
     if (token) {
       dispatch(fetchPaymentPlanDashboard());
       dispatch(fetchBillingPlans());
-      dispatch(fetchInvoices({ page: 1 })); // fetch first page of invoices
+      dispatch(fetchInvoices({ page: invoicePage })); // fetch current page of invoices
     }
-  }, [dispatch, token]);
+  }, [dispatch, token, invoicePage]);
 
   const {
     total_revenue,
@@ -314,7 +316,6 @@ export default function BillingPage() {
         </TabsContent>
 
         <TabsContent value="invoices" className="space-y-4">
-          
           <DataTable columns={invoiceColumns} data={invoices} />
           <div className="flex justify-between mb-2">
             <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={handleExportInvoices}>
@@ -324,6 +325,25 @@ export default function BillingPage() {
               window.location.href = "/admin/billing/settings?tab=invoice-generator";
             }}>
               <Plus className="h-4 w-4" /> Generate New Invoice
+            </Button>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setInvoicePage((p) => Math.max(1, p - 1))}
+              disabled={invoicePage === 1}
+            >
+              Previous
+            </Button>
+            <span className="self-center text-sm">Page {invoicePage}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setInvoicePage((p) => p + 1)}
+              disabled={invoices.length === 0 || (invoicesPaging && invoicePage >= invoicesPaging.totalPages)}
+            >
+              Next
             </Button>
           </div>
         </TabsContent>

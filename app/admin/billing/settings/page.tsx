@@ -14,24 +14,24 @@ export default function BillingSettingsPage() {
       </div>
 
       <Tabs defaultValue="payment" className="space-y-4">
-        <TabsList className="grid w-full max-w-2xl grid-cols-4">
-          <TabsTrigger value="payment">Payment Gateways</TabsTrigger>
+        <TabsList className="">
+          {/* <TabsTrigger value="payment">Payment Gateways</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-          <TabsTrigger value="alerts">Usage Alerts</TabsTrigger>
+          <TabsTrigger value="alerts">Usage Alerts</TabsTrigger> */}
           <TabsTrigger value="invoice">Invoice Generator</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="payment" className="space-y-4">
+        {/* <TabsContent value="payment" className="space-y-4">
           <PaymentGatewaySettings />
-        </TabsContent>
+        </TabsContent> */}
 
-        <TabsContent value="subscriptions" className="space-y-4">
+        {/* <TabsContent value="subscriptions" className="space-y-4">
           <SubscriptionManagement />
-        </TabsContent>
+        </TabsContent> */}
 
-        <TabsContent value="alerts" className="space-y-4">
+        {/* <TabsContent value="alerts" className="space-y-4">
           <UsageAlerts />
-        </TabsContent>
+        </TabsContent> */}
 
         <TabsContent value="invoice" className="space-y-4">
           <InvoiceGenerator />

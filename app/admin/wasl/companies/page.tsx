@@ -120,9 +120,9 @@ export default function WaslCompaniesPage() {
 
         return (
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm">
+            {/* <Button variant="outline" size="sm">
               Retry
-            </Button>
+            </Button> */}
           </div>
         )
       },
@@ -149,7 +149,7 @@ export default function WaslCompaniesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">WASL Companies</h1>
         <div className="flex space-x-2">
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
                 <Filter className="mr-2 h-4 w-4" />
@@ -174,14 +174,14 @@ export default function WaslCompaniesPage() {
                 <DropdownMenuItem>Global Logistics</DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
           <Button variant="outline">
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button onClick={() => setIsRegisterOpen(true)}>
+          {/* <Button onClick={() => setIsRegisterOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> Register Company
-          </Button>
+          </Button> */}
         </div>
       </div>
 

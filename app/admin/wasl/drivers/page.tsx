@@ -1,11 +1,14 @@
 "use client"
 
+import { useEffect } from "react"
 import { useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { DataTable } from "@/components/data-table"
 import { StatusBadge } from "@/components/status-badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAppDispatch, useAppSelector } from "../../../redux/reduxhook/Hook"
+import { fetchDriver } from "../../../redux/auth/driverSlice"
 
 // Define the data type
 type Driver = {
@@ -18,57 +21,36 @@ type Driver = {
   status: "success" | "error"
 }
 
-// Sample data
-const drivers: Driver[] = [
-  {
-    id: "1",
-    companyName: "Acme Corporation",
-    driverName: "John Doe",
-    mobileNumber: "+966 123456789",
-    identityNumber: "1234567890",
-    waslKey: "WASL-DRV-001",
-    status: "success",
-  },
-  {
-    id: "2",
-    companyName: "XYZ Industries",
-    driverName: "Jane Smith",
-    mobileNumber: "+966 987654321",
-    identityNumber: "0987654321",
-    waslKey: "WASL-DRV-002",
-    status: "success",
-  },
-  {
-    id: "3",
-    companyName: "Global Logistics",
-    driverName: "Ahmed Abdullah",
-    mobileNumber: "+966 555555555",
-    identityNumber: "5555555555",
-    waslKey: "WASL-DRV-003",
-    status: "error",
-  },
-  {
-    id: "4",
-    companyName: "Saudi Transport",
-    driverName: "Mohammed Al-Harbi",
-    mobileNumber: "+966 111222333",
-    identityNumber: "1112223334",
-    waslKey: "WASL-DRV-004",
-    status: "success",
-  },
-  {
-    id: "5",
-    companyName: "Riyadh Movers",
-    driverName: "Khalid Al-Otaibi",
-    mobileNumber: "+966 444555666",
-    identityNumber: "4445556667",
-    waslKey: "WASL-DRV-005",
-    status: "success",
-  },
-]
-
 export default function WaslDriversPage() {
-  const [data] = useState<Driver[]>(drivers)
+  const dispatch = useAppDispatch()
+  const { data, loading, error } = useAppSelector((state) => state.driver)
+  const token = useAppSelector((state) => state.auth.token)
+
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchDriver({ token }))
+    }
+  }, [dispatch, token])
+
+  useEffect(() => {
+    if (data && Array.isArray(data) && data.length > 0) {
+      // Debug: log the first item to inspect API structure
+      console.log('First driver item from API:', data[0])
+    }
+  }, [data])
+
+  // Transform API data to match table columns
+  const tableData = Array.isArray(data)
+    ? data.map((item: any, idx: number) => ({
+        id: item.id || idx.toString(),
+        companyName: item.company?.company_name || item.company_name || "-", // Nested company name
+        driverName: item.driver_name || item.driverName || "-",
+        mobileNumber: item.mobile_number || item.mobileNumber || "-",
+        identityNumber: item.identity_number || item.identityNumber || "-",
+        waslKey: item.wasl_driver_key || item.waslKey || "-", // Correct WASL key
+        status: item.status === true || item.status === "success" || item.status === 1 ? "success" : "error",
+      }))
+    : []
 
   // Define columns for the data table
   const columns: ColumnDef<Driver>[] = [
@@ -118,12 +100,18 @@ export default function WaslDriversPage() {
           <CardTitle>All Driver Registrations</CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable
-            columns={columns}
-            data={data}
-            searchKey="driverName"
-            searchPlaceholder="Search by driver name..."
-          />
+          {loading ? (
+            <div>Loading...</div>
+          ) : error ? (
+            <div className="text-red-500">{error}</div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={tableData}
+              searchKey="driverName"
+              searchPlaceholder="Search by driver name..."
+            />
+          )}
         </CardContent>
       </Card>
     </div>
